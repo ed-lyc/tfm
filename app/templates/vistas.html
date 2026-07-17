@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% block title %}Vistas SQL - MES Industrial{% endblock %}
+
+{% block content %}
+<div class="flex flex-col w-full min-h-[calc(100vh-120px)] gap-6">
+
+  <!-- ════════════════════════════════════════════════════════
+       CABECERA DINAMICA DE CONTROL
+       ════════════════════════════════════════════════════════ -->
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center shrink-0 gap-4">
+    <div>
+      <h2 class="text-xl font-extrabold tracking-tight">Administración de Vistas SQL</h2>
+      <p class="text-xs text-[var(--text-muted)]">Gestión y monitoreo de vistas materializadas y tablas analíticas de PostgreSQL.</p>
+    </div>
+    
+    <button class="flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl bg-brand-600 hover:bg-brand-700 text-white transition-all shadow-sm focus:ring-4 focus:ring-brand-300" style="background:var(--accent-color)">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+      </svg>
+      Refrescar Esquema
+    </button>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════
+       REJILLA DE TARJETAS DE VISTAS (SPAITAL CARDS)
+       ════════════════════════════════════════════════════════ -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+    <!-- Tarjeta de Vista 1: vw_produccion_diaria -->
+    <div class="mes-card rounded-2xl overflow-hidden transition-all flex flex-col p-6 border border-transparent hover:border-[var(--border-color)]">
+      <div class="flex justify-between items-start mb-4">
+        <div class="flex items-center gap-3">
+          <div class="p-2.5 bg-purple-100 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 rounded-xl">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path>
+            </svg>
+          </div>
+          <div>
+            <h3 class="font-bold text-sm tracking-tight">vw_produccion_diaria</h3>
+            <p class="text-[10px] uppercase font-bold text-purple-500 tracking-wider">Materialized View</p>
+          </div>
+        </div>
+        
+        <!-- Glowing Green Status Bullet -->
+        <span class="relative flex h-3.5 w-3.5" title="Estado: Activo">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-green-500"></span>
+        </span>
+      </div>
+
+      <!-- Métricas -->
+      <div class="flex-1 py-4 border-y border-[var(--border-color)] my-2">
+        <div class="flex justify-between items-center text-xs mb-2">
+          <span class="text-[var(--text-muted)] font-semibold">Última actualización:</span>
+          <span class="font-bold text-[var(--text-secondary)]">Hace 5 min</span>
+        </div>
+        <div class="flex justify-between items-center text-xs">
+          <span class="text-[var(--text-muted)] font-semibold">Filas estimadas:</span>
+          <span class="font-bold text-[var(--text-secondary)]">12,450</span>
+        </div>
+      </div>
+
+      <!-- Acciones de la Tarjeta -->
+      <div class="pt-4">
+        <button class="w-full text-xs font-bold text-center text-[var(--text-muted)] hover:text-[var(--accent-color)] transition-colors uppercase tracking-wider">
+          Refrescar Ahora
+        </button>
+      </div>
+    </div>
+
+    <!-- Tarjeta de Vista 2: vw_kpis_operarios -->
+    <div class="mes-card rounded-2xl overflow-hidden transition-all flex flex-col p-6 border border-transparent hover:border-[var(--border-color)]">
+      <div class="flex justify-between items-start mb-4">
+        <div class="flex items-center gap-3">
+          <div class="p-2.5 bg-blue-100 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 rounded-xl">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path>
+            </svg>
+          </div>
+          <div>
+            <h3 class="font-bold text-sm tracking-tight">vw_kpis_operarios</h3>
+            <p class="text-[10px] uppercase font-bold text-blue-500 tracking-wider">Materialized View</p>
+          </div>
+        </div>
+        
+        <!-- Glowing Green Status Bullet -->
+        <span class="relative flex h-3.5 w-3.5" title="Estado: Activo">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-green-500"></span>
+        </span>
+      </div>
+
+      <!-- Métricas -->
+      <div class="flex-1 py-4 border-y border-[var(--border-color)] my-2">
+        <div class="flex justify-between items-center text-xs mb-2">
+          <span class="text-[var(--text-muted)] font-semibold">Última actualización:</span>
+          <span class="font-bold text-[var(--text-secondary)]">Hace 1 hora</span>
+        </div>
+        <div class="flex justify-between items-center text-xs">
+          <span class="text-[var(--text-muted)] font-semibold">Filas estimadas:</span>
+          <span class="font-bold text-[var(--text-secondary)]">340</span>
+        </div>
+      </div>
+
+      <!-- Acciones de la Tarjeta -->
+      <div class="pt-4">
+        <button class="w-full text-xs font-bold text-center text-[var(--text-muted)] hover:text-[var(--accent-color)] transition-colors uppercase tracking-wider">
+          Refrescar Ahora
+        </button>
+      </div>
+    </div>
+
+    <!-- Tarjeta Añadir Nueva (Dashed Interactive Card) -->
+    <div class="rounded-2xl border-2 border-dashed border-[var(--border-color)] hover:border-[var(--accent-color)] flex flex-col items-center justify-center p-6 text-center transition-all cursor-pointer min-h-[240px] bg-[var(--bg-surface)]/20 hover:bg-[var(--bg-surface-hover)]">
+      <div class="w-12 h-12 rounded-full flex items-center justify-center mb-3 bg-slate-100 dark:bg-slate-800 text-[var(--text-muted)] border border-[var(--border-color)]">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+        </svg>
+      </div>
+      <h3 class="font-bold text-sm tracking-tight">Crear Nueva Vista</h3>
+      <p class="text-xs text-[var(--text-muted)] mt-1 max-w-[210px]">Añadir scripts SQL personalizados para generar reportes y vistas analíticas.</p>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

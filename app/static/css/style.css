@@ -1,0 +1,418 @@
+/* ==========================================================================
+   MES INDUSTRIAL - ESTILOS PRINCIPALES (MODERN SPATIAL UI)
+   ========================================================================== */
+
+/* 1. CSS VARIABLES (THEMING) */
+:root {
+    /* Typografía Principal */
+    --font-primary: 'Plus Jakarta Sans', sans-serif;
+    
+    /* Modo Claro (Light Theme) */
+    --bg-page: #ffffff;
+    --bg-surface: #f7f9fa;
+    --bg-surface-hover: #f0f3f6;
+    --bg-overlay: rgba(255, 255, 255, 0.85);
+    
+    --text-primary: #0f1419;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    
+    --border-color: #eff3f4;
+    
+    /* Accent Colors (Modern Cyan/Indigo) */
+    --accent-color: #0ea5e9;
+    --accent-hover: #0284c7;
+    --accent-light: rgba(14, 165, 233, 0.1);
+    
+    /* Semantic Colors */
+    --success: #10b981;
+    --success-light: rgba(16, 185, 129, 0.1);
+    --warning: #f59e0b;
+    --warning-light: rgba(245, 158, 11, 0.1);
+    --danger: #ef4444;
+    --danger-light: rgba(239, 68, 68, 0.1);
+    
+    /* Shadows (Diffuse, Spatial) */
+    --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.03);
+    --shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.06);
+}
+
+/* Modo Oscuro (Dark Theme - Professional Indigo) */
+html[data-theme="dark"], .dark {
+    --bg-page: #0f172a;      /* slate-900 */
+    --bg-surface: #1e293b;   /* slate-800 */
+    --bg-surface-hover: #334155; /* slate-700 */
+    --bg-overlay: rgba(15, 23, 42, 0.85);
+    
+    --text-primary: #f8fafc; /* slate-50 */
+    --text-secondary: #cbd5e1; /* slate-300 */
+    --text-muted: #94a3b8;   /* slate-400 */
+    
+    --border-color: #334155; /* slate-700 */
+    
+    --accent-color: #3b82f6;
+    --accent-hover: #2563eb;
+
+    /* Sombras más sutiles para oscuros */
+    --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.5);
+    --shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.8);
+}
+
+/* ==========================================================================
+   2. GLOBAL RESETS & TYPOGRAPHY
+   ========================================================================== */
+body {
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+    font-family: var(--font-primary);
+    transition: background-color 0.4s ease, color 0.4s ease;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-primary);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: var(--text-primary);
+}
+
+/* ==========================================================================
+   3. STRUCTURAL COMPONENTS
+   ========================================================================== */
+.mes-header {
+    background-color: var(--bg-overlay);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    transition: all 0.4s ease;
+}
+
+.mes-drawer {
+    background-color: var(--bg-overlay);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-left: 1px solid var(--border-color);
+    color: var(--text-primary);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.4s ease;
+}
+
+.mes-nav-link {
+    color: var(--text-secondary);
+    border-radius: 12px;
+    transition: all 0.2s ease;
+}
+
+.mes-nav-link:hover {
+    background-color: var(--bg-surface-hover);
+    color: var(--accent-color);
+}
+
+.mes-nav-link svg {
+    transition: color 0.2s ease;
+}
+
+.mes-nav-link:hover svg {
+    color: var(--accent-color);
+}
+
+.mes-btn-icon {
+    color: var(--text-secondary);
+    background-color: transparent;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.mes-btn-icon:hover {
+    background-color: var(--bg-surface-hover);
+    color: var(--text-primary);
+}
+
+/* ==========================================================================
+   4. UI COMPONENTS (CARDS, BADGES, METRICS)
+   ========================================================================== */
+
+/* Tarjetas (Borderless, Floating) */
+.mes-card {
+    background-color: var(--bg-surface);
+    border-radius: 24px;
+    padding: 32px;
+    box-shadow: var(--shadow-soft);
+    border: 1px solid transparent; /* No border initially */
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease, background-color 0.4s ease;
+}
+
+.mes-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-hover);
+    background-color: var(--bg-surface-hover);
+}
+
+/* Tipografía dentro de las tarjetas */
+.mes-card-title {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0;
+}
+
+.mes-metric {
+    color: var(--text-primary);
+    font-size: 2.5rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    margin-top: 16px;
+}
+
+.mes-metric-label {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-left: 8px;
+}
+
+/* Badges / Etiquetas */
+.mes-badge {
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    display: inline-flex;
+    align-items: center;
+}
+
+.mes-badge-success { background-color: var(--success-light); color: var(--success); }
+.mes-badge-brand { background-color: var(--accent-light); color: var(--accent-color); }
+.mes-badge-danger { background-color: var(--danger-light); color: var(--danger); }
+.mes-badge-warning { background-color: var(--warning-light); color: var(--warning); }
+
+/* Custom Animations */
+@keyframes pulse-subtle {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+.mes-animate-pulse {
+    animation: pulse-subtle 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ==========================================================================
+   5. UNIFIED FORM CONTROLS & FILTERS (GLOBAL STANDARD)
+   ========================================================================== */
+/* Todos los campos de texto, números, fechas, selects y áreas de texto */
+input[type="text"],
+input[type="number"],
+input[type="date"],
+select,
+textarea,
+.filter-input {
+    font-family: var(--font-primary) !important;
+    font-size: 0.875rem !important; /* 14px */
+    font-weight: 500 !important;
+    color: var(--text-primary) !important;
+    background-color: var(--bg-page) !important;
+    border: 1.5px solid var(--border-color) !important;
+    border-radius: 12px !important;
+    padding: 10px 16px !important;
+    outline: none !important;
+    box-shadow: none !important;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-sizing: border-box !important;
+}
+
+/* Estados Hover y Focus */
+input[type="text"]:hover,
+input[type="number"]:hover,
+input[type="date"]:hover,
+select:hover,
+textarea:hover,
+.filter-input:hover {
+    border-color: var(--accent-hover) !important;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+select:focus,
+textarea:focus,
+.filter-input:focus {
+    border-color: var(--accent-color) !important;
+    background-color: var(--bg-page) !important;
+    box-shadow: 0 0 0 3px var(--accent-light) !important;
+}
+
+/* Excepciones para campos de búsqueda compactos dentro de cabeceras de tablas Tabulator */
+.tabulator-header input {
+    font-size: 0.75rem !important; /* 12px */
+    padding: 6px 10px !important;
+    border-radius: 8px !important;
+    border-width: 1px !important;
+    margin-top: 5px !important;
+}
+.tabulator-header input:focus {
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 0 2px var(--accent-light) !important;
+}
+
+/* Estandarización de selectores múltiples Choices.js para mezclar con el tema */
+.choices__inner {
+    background-color: var(--bg-page) !important;
+    border: 1.5px solid var(--border-color) !important;
+    border-radius: 12px !important;
+    font-family: var(--font-primary) !important;
+    font-size: 0.875rem !important;
+    color: var(--text-primary) !important;
+    padding: 6px 12px !important;
+    min-height: 42px !important;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-sizing: border-box !important;
+}
+.choices.is-focused .choices__inner {
+    border-color: var(--accent-color) !important;
+    background-color: var(--bg-page) !important;
+    box-shadow: 0 0 0 3px var(--accent-light) !important;
+}
+.choices__list--dropdown, .choices__list[aria-expanded] {
+    background-color: var(--bg-surface) !important;
+    border: 1.5px solid var(--border-color) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--shadow-hover) !important;
+    color: var(--text-primary) !important;
+    font-family: var(--font-primary) !important;
+}
+.choices__item--choice.is-highlighted {
+    background-color: var(--bg-surface-hover) !important;
+    color: var(--accent-color) !important;
+}
+
+/* Estandarización para pastillas con inputs numéricos/checkboxes (qpill) */
+.qpill {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 8px 16px !important;
+    border-radius: 12px !important;
+    font-size: 0.875rem !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    border: 1.5px solid var(--border-color) !important;
+    background-color: var(--bg-surface) !important;
+    transition: all 0.2s ease !important;
+    color: var(--text-primary) !important;
+}
+.qpill.on {
+    border-color: var(--accent-color) !important;
+    background-color: var(--accent-light) !important;
+}
+.qpill input[type="checkbox"] {
+    width: 16px !important;
+    height: 16px !important;
+    accent-color: var(--accent-color) !important;
+    cursor: pointer !important;
+}
+.qpill input[type="number"] {
+    width: 60px !important;
+    text-align: center !important;
+    padding: 4px 8px !important;
+    border-radius: 8px !important;
+    font-size: 0.75rem !important;
+    background-color: var(--bg-page) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Tamaños compactos para inputs de fecha en barras de herramientas (Toolbars) */
+.flex.items-center.gap-1 input[type="date"],
+.flex.items-center.gap-1.5 input[type="date"],
+#date-start,
+#date-end,
+#filter-start,
+#filter-end {
+    padding: 6px 12px !important;
+    font-size: 0.75rem !important; /* 12px */
+    border-radius: 8px !important;
+    border-width: 1.5px !important;
+}
+
+/* ─── Contenedor y Botones de Rango de Fecha Unificados ──────────────────── */
+.date-preset-group {
+    display: inline-flex !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    border: 1.5px solid var(--border-color) !important;
+    background-color: var(--bg-surface) !important;
+    flex-shrink: 0 !important;
+}
+
+.date-preset-btn {
+    padding: 6px 14px !important;
+    font-size: 0.75rem !important; /* 12px */
+    font-weight: 700 !important;
+    color: var(--text-secondary) !important;
+    background-color: transparent !important;
+    border: none !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    border-right: 1.5px solid var(--border-color) !important;
+}
+
+.date-preset-btn:last-child {
+    border-right: none !important;
+}
+
+.date-preset-btn:hover {
+    background-color: var(--bg-surface-hover) !important;
+    color: var(--text-primary) !important;
+}
+
+.date-preset-btn.active {
+    background-color: var(--accent-light) !important;
+    color: var(--accent-color) !important;
+}
+
+/* Botón de búsqueda/aplicar rango en Toolbars */
+.toolbar-btn-apply {
+    padding: 6px 14px !important;
+    font-size: 0.75rem !important; /* 12px */
+    font-weight: 700 !important;
+    border-radius: 8px !important;
+    background-color: var(--accent-color) !important;
+    color: #ffffff !important;
+    transition: all 0.2s ease !important;
+    border: none !important;
+    cursor: pointer !important;
+}
+
+.toolbar-btn-apply:hover {
+    background-color: var(--accent-hover) !important;
+}
+
+/* ─── Choices.js Inner Input Resets (Fixes huge nested search inputs) ────── */
+.choices__input,
+input[type="text"].choices__input {
+    background-color: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 4px 8px !important;
+    margin: 0 !important;
+    width: auto !important;
+    min-width: 80px !important;
+    min-height: auto !important;
+    color: var(--text-primary) !important;
+    box-shadow: none !important;
+}
+
+/* ─── Focus Placeholder Behaviors (Hide placeholder when focused) ───────── */
+input:focus::placeholder,
+textarea:focus::placeholder {
+    color: transparent !important;
+    transition: color 0.15s ease !important;
+}
+

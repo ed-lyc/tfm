@@ -1,0 +1,678 @@
+{% extends 'base.html' %}
+{% block title %}Planificación y Explosión de Tiempos - MES Industrial{% endblock %}
+
+{% block head %}
+<!-- ECharts CDN -->
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+
+<style>
+/* Estilos para el autocompletado y diseño premium */
+.autocomplete-container {
+    position: relative;
+    width: 100%;
+}
+.autocomplete-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 50;
+    width: 100%;
+    max-height: 250px;
+    overflow-y: auto;
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: var(--shadow-hover);
+}
+.autocomplete-item {
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.15s ease;
+    border-bottom: 1px solid var(--border-color);
+}
+.autocomplete-item:last-child {
+    border-bottom: none;
+}
+.autocomplete-item:hover {
+    background-color: var(--bg-surface-hover);
+    color: var(--accent-color);
+}
+
+/* Tabla premium con bordes suaves */
+.simulation-table th {
+    background-color: var(--bg-surface);
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 12px 8px;
+    text-align: center;
+    border-bottom: 2px solid var(--border-color);
+}
+.simulation-table td {
+    padding: 12px 8px;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    border-bottom: 1px solid var(--border-color);
+}
+.simulation-table tr:hover {
+    background-color: var(--bg-surface-hover);
+}
+.simulation-table .total-row {
+    background-color: var(--bg-surface);
+    font-weight: 800;
+    border-top: 2px solid var(--border-color);
+}
+.simulation-table .total-row td {
+    font-weight: 800;
+    font-size: 13px;
+}
+
+/* Resaltar la columna N seleccionada por el usuario */
+.highlight-column {
+    background-color: rgba(59, 130, 246, 0.08) !important;
+    color: var(--accent-color) !important;
+    font-weight: 700 !important;
+}
+.dark .highlight-column {
+    background-color: rgba(59, 130, 246, 0.15) !important;
+    color: #93c5fd !important;
+}
+
+/* Switch de pestañas (Tabs) */
+.tab-btn {
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+}
+.tab-btn.active {
+    border-bottom-color: var(--accent-color);
+    color: var(--accent-color);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex flex-col w-full gap-4">
+    <!-- TÍTULO DE LA PÁGINA -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center shrink-0 gap-2 mb-2">
+        <div>
+            <h2 class="text-xl font-extrabold tracking-tight">Planificación y Explosión de Tiempos</h2>
+            <p class="text-xs text-[var(--text-muted)]">Cálculo y simulación del tiempo de flujo predictivo basado en estándares operativos y dotación de personal.</p>
+        </div>
+    </div>
+
+    <!-- CUERPO DE LA INTERFAZ -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        
+        <!-- COLUMNA IZQUIERDA: FORMULARIO DE SIMULACIÓN -->
+        <div class="lg:col-span-1 mes-card p-6 border flex flex-col gap-4" style="border-color:var(--border-color)">
+            <h3 class="font-extrabold text-base flex items-center gap-2" style="color:var(--text-primary)">
+                <svg class="w-5 h-5 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                </svg>
+                Parámetros de Pedido
+            </h3>
+            <div class="flex flex-col gap-4">
+                <!-- Buscador de Producto -->
+                <div class="flex flex-col gap-1.5 autocomplete-container">
+                    <label class="text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-muted)]">Producto a Fabricar (Código/Nombre)</label>
+                    <input type="text" id="producto-search" placeholder="Escribe para buscar un producto..." 
+                        class="w-full"
+                        oninput="filterProducts()" onfocus="showDropdown()">
+                    <input type="hidden" id="selected-product-code">
+                    <div id="product-dropdown" class="autocomplete-dropdown hidden"></div>
+                </div>
+
+                <!-- Cantidad Solicitada -->
+                <div class="flex flex-col gap-1.5">
+                    <label for="input-cantidad" class="text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-muted)]">Cantidad a Producir (Unidades)</label>
+                    <input type="number" id="input-cantidad" placeholder="Ej. 5000" min="1" step="1"
+                        class="w-full"
+                        oninput="runSimulation()">
+                </div>
+
+                <!-- Parámetro de Personas N (Default 3) -->
+                <div class="flex flex-col gap-1.5">
+                    <label for="input-personas" class="text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-muted)]">Personas Asignadas (N)</label>
+                    <input type="number" id="input-personas" value="3" min="1" max="100" step="1"
+                        class="w-full" placeholder="Ej. 3"
+                        oninput="runSimulation()">
+                </div>
+
+                <!-- Botón de Limpieza -->
+                <button onclick="resetForm()" class="w-full mt-2 py-2.5 text-xs font-semibold rounded-xl border transition-all" 
+                    style="border-color:var(--border-color);background:var(--bg-surface);color:var(--text-primary)">
+                    Limpiar Parámetros
+                </button>
+            </div>
+        </div>
+
+        <!-- COLUMNA DERECHA: RESULTADOS -->
+        <div class="lg:col-span-2 flex flex-col gap-6 w-full">
+            
+            <!-- PANEL VACÍO POR DEFECTO -->
+            <div id="panel-empty" class="mes-card p-12 border flex flex-col items-center justify-center text-center gap-4 h-[400px]" style="border-color:var(--border-color)">
+                <svg class="w-16 h-16 text-[var(--text-muted)] opacity-30 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <div>
+                    <h4 class="font-extrabold text-base" style="color:var(--text-primary)">Esperando Parámetros</h4>
+                    <p class="text-xs text-[var(--text-muted)] mt-1 max-w-sm">Ingresa un código de producto, la cantidad a fabricar y el número de personas en el panel lateral para iniciar la explosión de tiempos.</p>
+                </div>
+            </div>
+
+            <!-- CONTENIDO DE SIMULACIÓN (OCULTO AL INICIO) -->
+            <div id="panel-results" class="hidden flex flex-col gap-6 w-full">
+                
+                <!-- TARJETAS DE KPIS PRINCIPALES -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- KPI 1: Producto Seleccionado -->
+                    <div class="mes-card p-5 border flex flex-col justify-between" style="border-color:var(--border-color)">
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-muted)]">Producto Seleccionado</span>
+                        <div class="mt-2">
+                            <h4 id="kpi-product-code" class="text-lg font-black tracking-tight" style="color:var(--accent-color)">—</h4>
+                            <p id="kpi-product-name" class="text-xs text-[var(--text-secondary)] font-semibold mt-0.5 truncate">—</p>
+                        </div>
+                    </div>
+                    <!-- KPI 2: Tiempos Totales Estimados -->
+                    <div class="mes-card p-5 border flex flex-col justify-between" style="border-color:var(--border-color)">
+                        <span class="text-[10px] font-extrabold uppercase tracking-wider text-[var(--text-muted)]">Horas Requeridas Totales</span>
+                        <div class="mt-2 flex items-baseline gap-2">
+                            <h4 id="kpi-hours-n" class="text-3xl font-black tracking-tight text-emerald-500">—</h4>
+                            <span class="text-xs text-[var(--text-muted)] font-bold">horas con <span id="kpi-persons-n" class="text-emerald-500 font-extrabold">3</span> personas</span>
+                        </div>
+                        <p class="text-[10px] text-[var(--text-muted)] font-semibold mt-1">Con 1 persona tomaría <span id="kpi-hours-1" class="font-bold text-[var(--text-secondary)]">—</span> horas de trabajo acumulado.</p>
+                    </div>
+                </div>
+
+                <!-- TABS DE NAVEGACIÓN DE RESULTADOS -->
+                <div class="mes-card p-4 border flex flex-col gap-4" style="border-color:var(--border-color)">
+                    <div class="flex items-center justify-between border-b pb-2 shrink-0" style="border-color:var(--border-color)">
+                        <div class="flex gap-2">
+                            <button id="tab-table" class="tab-btn active text-xs font-extrabold" onclick="switchTab('table')">TABLA DE EXPLOSIÓN</button>
+                            <button id="tab-charts" class="tab-btn text-xs font-extrabold" onclick="switchTab('charts')">GRÁFICOS DE ANÁLISIS</button>
+                        </div>
+                        <span class="text-[10px] font-extrabold px-2.5 py-1 rounded-full text-blue-600 dark:text-blue-400 bg-blue-100/40 dark:bg-blue-900/30">
+                            Simulación Predictiva
+                        </span>
+                    </div>
+
+                    <!-- PESTAÑA A: TABLA DE TIEMPOS -->
+                    <div id="container-tab-table" class="w-full">
+                        <p class="text-xs text-[var(--text-muted)] mb-3">Tiempos calculados por proceso según dotación de personal (desglose en horas de trabajo):</p>
+                        <div class="w-full overflow-x-auto">
+                            <table class="w-full simulation-table border-collapse">
+                                <thead>
+                                    <tr>
+                                        <th style="text-align: left; min-width: 140px;">Proceso</th>
+                                        <th style="min-width: 70px;">Std (u/h)</th>
+                                        <th style="min-width: 60px;">1 Pers.</th>
+                                        <th style="min-width: 60px;">2 Pers.</th>
+                                        <th style="min-width: 60px;">3 Pers.</th>
+                                        <th style="min-width: 60px;">4 Pers.</th>
+                                        <th style="min-width: 60px;">5 Pers.</th>
+                                        <th style="min-width: 60px;">6 Pers.</th>
+                                        <th style="min-width: 60px;">7 Pers.</th>
+                                        <th id="th-custom-n" class="highlight-column" style="min-width: 70px;">3 Pers. (N)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="simulation-tbody">
+                                    <!-- Las filas serán insertadas por JavaScript -->
+                                </tbody>
+                                <tfoot>
+                                    <tr id="simulation-tfoot" class="total-row">
+                                        <!-- La fila de totales será insertada por JavaScript -->
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- PESTAÑA B: GRÁFICOS DE ANÁLISIS -->
+                    <div id="container-tab-charts" class="hidden w-full flex flex-col gap-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Gráfico de Cuellos de Botella (Procesos) -->
+                            <div class="flex flex-col gap-2">
+                                <h5 class="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">Cuello de Botella por Proceso (Horas)</h5>
+                                <div id="chart-bottleneck" class="w-full h-80 min-h-[300px]"></div>
+                            </div>
+                            <!-- Gráfico Curva de Personal -->
+                            <div class="flex flex-col gap-2">
+                                <h5 class="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">Curva de Productividad (Personal vs Tiempo Total)</h5>
+                                <div id="chart-personal-curve" class="w-full h-80 min-h-[300px]"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Datos en memoria
+let allProducts = [];
+let selectedProductStandards = [];
+let chartBottleneck = null;
+let chartCurve = null;
+let currentActiveTab = 'table';
+
+document.addEventListener('DOMContentLoaded', () => {
+    fetchProducts();
+    
+    // Cerrar dropdown al hacer clic fuera
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.autocomplete-container')) {
+            hideDropdown();
+        }
+    });
+
+    // Adaptar gráficos al redimensionar ventana
+    window.addEventListener('resize', () => {
+        if (chartBottleneck) chartBottleneck.resize();
+        if (chartCurve) chartCurve.resize();
+    });
+
+    // Detectar cambios de tema (claro/oscuro) de forma dinámica para actualizar colores de gráficos
+    const observer = new MutationObserver(() => {
+        const code = document.getElementById('selected-product-code').value;
+        if (code && selectedProductStandards.length > 0) {
+            runSimulation();
+        }
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme'] });
+});
+
+// Obtener lista de productos desde la API
+function fetchProducts() {
+    fetch('/api/productos')
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                console.error("Error al obtener productos:", data.error);
+                return;
+            }
+            allProducts = data;
+        })
+        .catch(err => console.error("Error de red:", err));
+}
+
+// Mostrar dropdown
+function showDropdown() {
+    const inputVal = document.getElementById('producto-search').value.trim();
+    filterDropdown(inputVal);
+}
+
+// Ocultar dropdown
+function hideDropdown() {
+    document.getElementById('product-dropdown').classList.add('hidden');
+}
+
+// Filtrar productos al escribir
+function filterProducts() {
+    const inputVal = document.getElementById('producto-search').value;
+    filterDropdown(inputVal);
+}
+
+// Llenar el dropdown
+function filterDropdown(query) {
+    const dropdown = document.getElementById('product-dropdown');
+    dropdown.innerHTML = '';
+    
+    const filtered = allProducts.filter(p => 
+        p.codigo_interno_pieza.toLowerCase().includes(query.toLowerCase()) || 
+        (p.descripcion_pieza && p.descripcion_pieza.toLowerCase().includes(query.toLowerCase()))
+    );
+
+    if (filtered.length === 0) {
+        dropdown.classList.add('hidden');
+        return;
+    }
+
+    filtered.slice(0, 15).forEach(p => {
+        const item = document.createElement('div');
+        item.className = 'autocomplete-item flex justify-between items-center';
+        item.innerHTML = `
+            <span class="font-extrabold text-blue-500">${p.codigo_interno_pieza}</span>
+            <span class="text-xs text-[var(--text-muted)] truncate max-w-[200px]">${p.descripcion_pieza || 'Sin descripción'}</span>
+        `;
+        item.onclick = () => selectProduct(p);
+        dropdown.appendChild(item);
+    });
+
+    dropdown.classList.remove('hidden');
+}
+
+// Seleccionar un producto
+function selectProduct(product) {
+    document.getElementById('producto-search').value = `${product.codigo_interno_pieza} - ${product.descripcion_pieza || ''}`;
+    document.getElementById('selected-product-code').value = product.codigo_interno_pieza;
+    hideDropdown();
+
+    // Obtener estándares de este producto específico
+    fetch(`/api/estandares/producto/${product.codigo_interno_pieza}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert("Error al cargar estándares: " + data.error);
+                return;
+            }
+            selectedProductStandards = data;
+            
+            // Actualizar KPIs del producto
+            document.getElementById('kpi-product-code').innerText = product.codigo_interno_pieza;
+            document.getElementById('kpi-product-name').innerText = product.descripcion_pieza || 'Sin descripción';
+            
+            runSimulation();
+        })
+        .catch(err => console.error("Error cargando estándares:", err));
+}
+
+// Simular y calcular explosión de tiempos
+function runSimulation() {
+    const code = document.getElementById('selected-product-code').value;
+    const qty = parseInt(document.getElementById('input-cantidad').value);
+    const nPersons = parseInt(document.getElementById('input-personas').value) || 3;
+    
+    const panelEmpty = document.getElementById('panel-empty');
+    const panelResults = document.getElementById('panel-results');
+
+    // Validar parámetros
+    if (!code || isNaN(qty) || qty <= 0) {
+        panelEmpty.classList.remove('hidden');
+        panelResults.classList.add('hidden');
+        return;
+    }
+
+    // Mostrar panel de resultados
+    panelEmpty.classList.add('hidden');
+    panelResults.classList.remove('hidden');
+
+    // Actualizar encabezado de columna custom y KPIs
+    document.getElementById('th-custom-n').innerText = `${nPersons} Pers. (N)`;
+    document.getElementById('kpi-persons-n').innerText = nPersons;
+
+    const tbody = document.getElementById('simulation-tbody');
+    tbody.innerHTML = '';
+
+    // Variables para acumular totales de horas
+    let totalH1 = 0, totalH2 = 0, totalH3 = 0, totalH4 = 0, totalH5 = 0, totalH6 = 0, totalH7 = 0, totalHN = 0;
+    
+    // Arrays para graficación
+    let processNames = [];
+    let processHoursN = [];
+
+    selectedProductStandards.forEach(row => {
+        const process = row.proceso;
+        const speed = parseFloat(row.promedio_ciclo_piezas_hora) || 0;
+        
+        let h1 = 0, h2 = 0, h3 = 0, h4 = 0, h5 = 0, h6 = 0, h7 = 0, hN = 0;
+        if (speed > 0) {
+            h1 = qty / speed;
+            h2 = h1 / 2;
+            h3 = h1 / 3;
+            h4 = h1 / 4;
+            h5 = h1 / 5;
+            h6 = h1 / 6;
+            h7 = h1 / 7;
+            hN = h1 / nPersons;
+        }
+
+        // Acumular
+        totalH1 += h1;
+        totalH2 += h2;
+        totalH3 += h3;
+        totalH4 += h4;
+        totalH5 += h5;
+        totalH6 += h6;
+        totalH7 += h7;
+        totalHN += hN;
+
+        // Guardar para gráficos
+        processNames.push(process);
+        processHoursN.push(hN);
+
+        // Crear fila
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="text-align: left;" class="text-xs text-[var(--text-primary)] font-bold">${process}</td>
+            <td class="text-xs text-[var(--text-muted)] font-mono">${speed.toFixed(1)}</td>
+            <td style="font-variant-numeric: tabular-nums;">${h1.toFixed(2)}h</td>
+            <td style="font-variant-numeric: tabular-nums;">${h2.toFixed(2)}h</td>
+            <td style="font-variant-numeric: tabular-nums;">${h3.toFixed(2)}h</td>
+            <td style="font-variant-numeric: tabular-nums;">${h4.toFixed(2)}h</td>
+            <td style="font-variant-numeric: tabular-nums;">${h5.toFixed(2)}h</td>
+            <td style="font-variant-numeric: tabular-nums;">${h6.toFixed(2)}h</td>
+            <td style="font-variant-numeric: tabular-nums;">${h7.toFixed(2)}h</td>
+            <td class="highlight-column" style="font-variant-numeric: tabular-nums;">${hN.toFixed(2)}h</td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    // Inyectar fila de Totales
+    const tfoot = document.getElementById('simulation-tfoot');
+    tfoot.innerHTML = `
+        <td style="text-align: left;" class="text-sm">TOTALES REQUERIDOS</td>
+        <td>—</td>
+        <td style="font-variant-numeric: tabular-nums;">${totalH1.toFixed(2)}h</td>
+        <td style="font-variant-numeric: tabular-nums;">${totalH2.toFixed(2)}h</td>
+        <td style="font-variant-numeric: tabular-nums;">${totalH3.toFixed(2)}h</td>
+        <td style="font-variant-numeric: tabular-nums;">${totalH4.toFixed(2)}h</td>
+        <td style="font-variant-numeric: tabular-nums;">${totalH5.toFixed(2)}h</td>
+        <td style="font-variant-numeric: tabular-nums;">${totalH6.toFixed(2)}h</td>
+        <td style="font-variant-numeric: tabular-nums;">${totalH7.toFixed(2)}h</td>
+        <td class="highlight-column text-emerald-600 dark:text-emerald-400" style="font-variant-numeric: tabular-nums;">${totalHN.toFixed(2)}h</td>
+    `;
+
+    // Actualizar KPIs rápidos
+    document.getElementById('kpi-hours-n').innerText = `${totalHN.toFixed(2)}`;
+    document.getElementById('kpi-hours-1').innerText = `${totalH1.toFixed(2)}`;
+
+    // Renderizar o actualizar gráficos
+    updateCharts(processNames, processHoursN, [
+        { p: 1, h: totalH1 },
+        { p: 2, h: totalH2 },
+        { p: 3, h: totalH3 },
+        { p: 4, h: totalH4 },
+        { p: 5, h: totalH5 },
+        { p: 6, h: totalH6 },
+        { p: 7, h: totalH7 },
+        { p: nPersons, h: totalHN }
+    ]);
+}
+
+// Limpiar formulario de planificación
+function resetForm() {
+    document.getElementById('producto-search').value = '';
+    document.getElementById('selected-product-code').value = '';
+    document.getElementById('input-cantidad').value = '';
+    document.getElementById('input-personas').value = 3;
+    selectedProductStandards = [];
+    
+    document.getElementById('panel-empty').classList.remove('hidden');
+    document.getElementById('panel-results').classList.add('hidden');
+}
+
+// Navegar entre Pestañas
+function switchTab(tab) {
+    currentActiveTab = tab;
+    document.getElementById('tab-table').classList.toggle('active', tab === 'table');
+    document.getElementById('tab-charts').classList.toggle('active', tab === 'charts');
+    
+    document.getElementById('container-tab-table').classList.toggle('hidden', tab !== 'table');
+    document.getElementById('container-tab-charts').classList.toggle('hidden', tab !== 'charts');
+
+    if (tab === 'charts') {
+        // Forzar redibujado de los gráficos de ECharts para que tomen el tamaño correcto
+        setTimeout(() => {
+            if (chartBottleneck) chartBottleneck.resize();
+            if (chartCurve) chartCurve.resize();
+        }, 100);
+    }
+}
+
+// Helper para detectar modo oscuro
+function isDarkTheme() {
+    return document.documentElement.classList.contains('dark');
+}
+
+// Renderizar/actualizar los gráficos
+function updateCharts(processNames, processHoursN, curveData) {
+    const isDark = isDarkTheme();
+    const textThemeColor = isDark ? '#cbd5e1' : '#475569';
+    const splitLineColor = isDark ? '#334155' : '#eff3f4';
+
+    // ─── 1. GRÁFICO DE CUELLO DE BOTELLA ───
+    if (!chartBottleneck) {
+        chartBottleneck = echarts.init(document.getElementById('chart-bottleneck'));
+    }
+    
+    const optionBottleneck = {
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'shadow' },
+            backgroundColor: isDark ? '#1e293b' : '#ffffff',
+            borderColor: isDark ? '#334155' : '#eff3f4',
+            textStyle: { color: isDark ? '#cbd5e1' : '#475569', fontFamily: 'var(--font-primary)' },
+            formatter: function(params) {
+                const p = params[0];
+                return `<div style="font-family:var(--font-primary); font-size:12px; color:${isDark ? '#cbd5e1' : '#475569'}">
+                    <b>${p.name}</b><br/>
+                    Tiempo: <b>${p.value.toFixed(2)}h</b>
+                </div>`;
+            }
+        },
+        grid: { left: '3%', right: '8%', bottom: '3%', top: '8%', containLabel: true },
+        xAxis: {
+            type: 'value',
+            name: 'Horas',
+            nameTextStyle: { color: textThemeColor, fontWeight: 'bold' },
+            splitLine: { lineStyle: { color: splitLineColor } },
+            axisLabel: { color: textThemeColor }
+        },
+        yAxis: {
+            type: 'category',
+            data: processNames,
+            axisLabel: { color: textThemeColor, fontSize: 10, fontWeight: 'bold' }
+        },
+        series: [
+            {
+                name: 'Horas de Proceso',
+                type: 'bar',
+                data: processHoursN,
+                itemStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                        { offset: 0, color: '#3b82f6' },
+                        { offset: 1, color: '#0ea5e9' }
+                    ]),
+                    borderRadius: [0, 6, 6, 0]
+                },
+                label: {
+                    show: true,
+                    position: 'right',
+                    formatter: function(params) {
+                        return params.value.toFixed(2) + 'h';
+                    },
+                    valueAnimation: true,
+                    color: textThemeColor,
+                    fontSize: 10,
+                    fontWeight: 'bold'
+                }
+            }
+        ]
+    };
+    chartBottleneck.setOption(optionBottleneck);
+
+    // ─── 2. GRÁFICO DE CURVA DE PERSONAL ───
+    if (!chartCurve) {
+        chartCurve = echarts.init(document.getElementById('chart-personal-curve'));
+    }
+
+    // Ordenar datos de curva por número de personas
+    curveData.sort((a, b) => a.p - b.p);
+    
+    // Remover duplicados en el número de personas (por si N está entre 1 y 7)
+    const uniqueCurveData = [];
+    const seen = new Set();
+    curveData.forEach(d => {
+        if (!seen.has(d.p)) {
+            seen.add(d.p);
+            uniqueCurveData.push(d);
+        }
+    });
+
+    const xData = uniqueCurveData.map(d => `${d.p} Pers.`);
+    const yData = uniqueCurveData.map(d => parseFloat(d.h.toFixed(2)));
+
+    const optionCurve = {
+        tooltip: {
+            trigger: 'axis',
+            backgroundColor: isDark ? '#1e293b' : '#ffffff',
+            borderColor: isDark ? '#334155' : '#eff3f4',
+            textStyle: { color: isDark ? '#cbd5e1' : '#475569', fontFamily: 'var(--font-primary)' },
+            formatter: function(params) {
+                const p = params[0];
+                return `<div style="font-family:var(--font-primary); font-size:12px; color:${isDark ? '#cbd5e1' : '#475569'}">
+                    <b>${p.name}</b><br/>
+                    Tiempo Total: <b>${p.value.toFixed(2)}h</b>
+                </div>`;
+            }
+        },
+        grid: { left: '3%', right: '4%', bottom: '3%', top: '8%', containLabel: true },
+        xAxis: {
+            type: 'category',
+            data: xData,
+            axisLabel: { color: textThemeColor, fontWeight: 'bold' }
+        },
+        yAxis: {
+            type: 'value',
+            name: 'Horas Totales',
+            nameTextStyle: { color: textThemeColor, fontWeight: 'bold' },
+            splitLine: { lineStyle: { color: splitLineColor } },
+            axisLabel: { color: textThemeColor }
+        },
+        series: [
+            {
+                name: 'Tiempo Requerido',
+                type: 'line',
+                data: yData,
+                smooth: true,
+                symbolSize: 8,
+                itemStyle: { color: '#10b981' },
+                lineStyle: { width: 3, shadowColor: 'rgba(16, 185, 129, 0.3)', shadowBlur: 10 },
+                areaStyle: {
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        { offset: 0, color: 'rgba(16, 185, 129, 0.25)' },
+                        { offset: 1, color: 'rgba(16, 185, 129, 0.0)' }
+                    ])
+                },
+                label: {
+                    show: true,
+                    position: 'top',
+                    formatter: function(params) {
+                        return params.value.toFixed(2) + 'h';
+                    },
+                    color: textThemeColor,
+                    fontSize: 10,
+                    fontWeight: 'bold'
+                }
+            }
+        ]
+    };
+    chartCurve.setOption(optionCurve);
+}
+</script>
+{% endblock %}

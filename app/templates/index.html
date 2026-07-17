@@ -1,0 +1,582 @@
+{% extends 'base.html' %}
+
+{% block title %}Centro de Mando - MES Industrial{% endblock %}
+
+{% block head %}
+<style>
+/* Estilos premium para tarjetas de acceso directo compactas */
+.shortcut-card-compact {
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-surface);
+    border-radius: 20px;
+}
+.shortcut-card-compact:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+    background-color: var(--bg-surface-hover);
+    border-color: var(--accent-color);
+}
+.active-pill {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+.dark .active-pill {
+    background-color: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+}
+.modal-backdrop {
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+}
+/* Estilos de tabla en el modal de detalles */
+.modal-table th {
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    padding: 12px 16px;
+    border-bottom: 2px solid var(--border-color);
+}
+.modal-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+/* Tarjetas de KPIs interactivas */
+.interactive-kpi-card {
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    cursor: pointer;
+}
+.interactive-kpi-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-hover);
+    background-color: var(--bg-surface-hover);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex flex-col w-full gap-4 max-w-7xl mx-auto">
+
+    <!-- ENCABEZADO Y DATOS DE FECHA/SEMANA (COMPRESO) -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center shrink-0 gap-2 pb-2 border-b" style="border-color: var(--border-color);">
+        <div>
+            <h1 class="text-3xl font-black tracking-tight" style="color: var(--text-primary);">Centro de Mando</h1>
+            <p class="text-sm text-[var(--text-secondary)] font-semibold">Navegación general y estado operativo en planta.</p>
+        </div>
+        
+        <!-- Badge de fecha y semana -->
+        <div class="flex items-center gap-4 bg-[var(--bg-surface)] px-4 py-1.5 rounded-xl border" style="border-color: var(--border-color);">
+            <div class="flex flex-col">
+                <span class="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)]">Fecha de Operación</span>
+                <span class="text-sm font-extrabold" style="color: var(--text-primary);">{{ kpis.fecha }}</span>
+            </div>
+            <div class="h-6 border-r" style="border-color: var(--border-color);"></div>
+            <div class="flex flex-col">
+                <span class="text-[10px] font-black uppercase tracking-wider text-[var(--text-muted)]">Semana ISO</span>
+                <span class="text-sm font-black text-blue-500">Semana {{ kpis.semana }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECCIÓN 1: KPIS OPERATIVOS DE HOY (TARJETAS DE MÉTRICAS INTERACTIVAS Y RESPONSIVAS) -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        
+        <!-- Personal Laborando -->
+        <div onclick="openMetricDetails('personal')"
+             class="mes-card p-5 border flex items-center justify-between interactive-kpi-card" 
+             style="border-color: var(--border-color); border-radius: 20px;">
+            <div class="flex flex-col gap-1">
+                <h3 class="text-xs font-black tracking-wider text-[var(--text-muted)] uppercase">Personal Laborando</h3>
+                <div class="mt-1 flex items-baseline gap-2">
+                    <span class="text-4xl md:text-5xl font-black tracking-tight text-blue-500">{{ kpis.personal_laborando }}</span>
+                    <span class="text-xs md:text-sm font-semibold text-[var(--text-secondary)]">Operarios en Máquina</span>
+                </div>
+            </div>
+            <div class="p-3 rounded-2xl bg-blue-50 dark:bg-blue-900/20 text-blue-500 shrink-0">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Estado de Máquinas (Funcionando vs Paradas) -->
+        <div onclick="openMetricDetails('maquinas')"
+             class="mes-card p-5 border flex items-center justify-between interactive-kpi-card" 
+             style="border-color: var(--border-color); border-radius: 20px;">
+            <div class="flex flex-col gap-1 w-full">
+                <h3 class="text-xs font-black tracking-wider text-[var(--text-muted)] uppercase">Estado de Máquinas</h3>
+                <div class="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                    <div class="flex items-baseline gap-1.5">
+                        <span class="text-4xl md:text-5xl font-black tracking-tight text-emerald-500">{{ kpis.maquinas_funcionando }}</span>
+                        <span class="text-xs md:text-sm font-semibold text-emerald-500">Activas</span>
+                    </div>
+                    <div class="flex items-baseline gap-1.5">
+                        <span class="text-2xl md:text-3xl font-extrabold tracking-tight text-red-500">{{ kpis.maquinas_paradas }}</span>
+                        <span class="text-xs md:text-sm font-semibold text-red-500">Paradas</span>
+                    </div>
+                </div>
+            </div>
+            <div class="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 shrink-0">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+                </svg>
+            </div>
+        </div>
+
+        <!-- Alertas y Calidad -->
+        <div onclick="openMetricDetails('alertas')"
+             class="mes-card p-5 border flex items-center justify-between interactive-kpi-card transition-all {% if kpis.anomalias_detectadas > 0 %}border-red-400 bg-red-50/10 dark:bg-red-950/10 hover:border-red-500{% else %}hover:border-emerald-500{% endif %}" 
+             style="border-color: {% if kpis.anomalias_detectadas > 0 %}#f87171{% else %}var(--border-color){% endif %}; border-radius: 20px;">
+            <div class="flex flex-col gap-1">
+                <h3 class="text-xs font-black tracking-wider text-[var(--text-muted)] uppercase">Alertas y Calidad</h3>
+                <div class="mt-1 flex items-baseline gap-2">
+                    <span class="text-4xl md:text-5xl font-black tracking-tight {% if kpis.anomalias_detectadas > 0 %}text-red-500{% else %}text-emerald-500{% endif %}">
+                        {{ kpis.anomalias_detectadas }}
+                    </span>
+                    <span class="text-xs md:text-sm font-semibold {% if kpis.anomalias_detectadas > 0 %}text-red-500 font-black animate-pulse{% else %}text-emerald-500{% endif %}">
+                        {% if kpis.anomalias_detectadas > 0 %}⚠ Anomalía Detectada{% else %}Sin Desviaciones{% endif %}
+                    </span>
+                </div>
+            </div>
+            <div class="p-3 rounded-2xl {% if kpis.anomalias_detectadas > 0 %}bg-red-100 dark:bg-red-900/30 text-red-500 animate-pulse{% else %}bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500{% endif %} shrink-0">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- SECCIÓN 2: CARGA EN PROCESO POR PRODUCTO CLAVE (INTERACTIVO AL HACER CLIC) -->
+    <div class="mes-card p-4 border flex flex-col gap-3" style="border-color: var(--border-color); border-radius: 20px;">
+        <h3 class="font-extrabold text-sm flex items-center gap-2" style="color: var(--text-primary);">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+            Órdenes en Proceso Hoy (Clic para ver detalles)
+        </h3>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            <!-- Rampa -->
+            <div onclick="openDetails('Rampas de Cocina', 'rampa')"
+                class="bg-[var(--bg-page)] p-3.5 rounded-xl border flex flex-col justify-between cursor-pointer hover:border-blue-500 hover:shadow-sm transition-all" 
+                style="border-color: var(--border-color);">
+                <span class="text-xs font-bold text-[var(--text-secondary)] uppercase">Rampas Cocina</span>
+                <div class="mt-2 flex items-baseline justify-between">
+                    <span class="text-3xl font-black text-blue-500">{{ kpis.rampa }}</span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-md active-pill">Ver ➔</span>
+                </div>
+            </div>
+            <!-- Combustion -->
+            <div onclick="openDetails('Combustiones', 'combustion')"
+                class="bg-[var(--bg-page)] p-3.5 rounded-xl border flex flex-col justify-between cursor-pointer hover:border-amber-500 hover:shadow-sm transition-all" 
+                style="border-color: var(--border-color);">
+                <span class="text-xs font-bold text-[var(--text-secondary)] uppercase">Combustiones</span>
+                <div class="mt-2 flex items-baseline justify-between">
+                    <span class="text-3xl font-black text-amber-500">{{ kpis.combustion }}</span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-md active-pill">Ver ➔</span>
+                </div>
+            </div>
+            <!-- Soportes -->
+            <div onclick="openDetails('Soportes', 'soporte')"
+                class="bg-[var(--bg-page)] p-3.5 rounded-xl border flex flex-col justify-between cursor-pointer hover:border-emerald-500 hover:shadow-sm transition-all" 
+                style="border-color: var(--border-color);">
+                <span class="text-xs font-bold text-[var(--text-secondary)] uppercase">Soportes</span>
+                <div class="mt-2 flex items-baseline justify-between">
+                    <span class="text-3xl font-black text-emerald-500">{{ kpis.soporte }}</span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-md active-pill">Ver ➔</span>
+                </div>
+            </div>
+            <!-- Horno -->
+            <div onclick="openDetails('Horno', 'horno')"
+                class="bg-[var(--bg-page)] p-3.5 rounded-xl border flex flex-col justify-between cursor-pointer hover:border-purple-500 hover:shadow-sm transition-all" 
+                style="border-color: var(--border-color);">
+                <span class="text-xs font-bold text-[var(--text-secondary)] uppercase">Horno</span>
+                <div class="mt-2 flex items-baseline justify-between">
+                    <span class="text-3xl font-black text-purple-500">{{ kpis.horno }}</span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-md active-pill">Ver ➔</span>
+                </div>
+            </div>
+            <!-- Espartallamas -->
+            <div onclick="openDetails('Espartallamas', 'espartallama')"
+                class="bg-[var(--bg-page)] p-3.5 rounded-xl border flex flex-col justify-between cursor-pointer hover:border-sky-500 hover:shadow-sm transition-all" 
+                style="border-color: var(--border-color);">
+                <span class="text-xs font-bold text-[var(--text-secondary)] uppercase">Espartallamas</span>
+                <div class="mt-2 flex items-baseline justify-between">
+                    <span class="text-3xl font-black text-sky-500">{{ kpis.espartallama }}</span>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-md active-pill">Ver ➔</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECCIÓN 3: ACCESOS DIRECTOS Y DESCRIPCIÓN (DIAGRAMACIÓN COMPRESA CON FUENTE MÁS GRANDE) -->
+    <div class="flex flex-col gap-3">
+        <h3 class="font-extrabold text-xs uppercase tracking-wider text-[var(--text-muted)]">Navegación y Perfiles de Uso</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            
+            <!-- Acceso: Planificación -->
+            <a href="{{ url_for('planificacion') }}" class="shortcut-card-compact p-4 flex flex-col justify-between h-40 no-underline transition-all">
+                <div class="flex justify-between items-center">
+                    <span class="text-sm font-extrabold text-[var(--text-primary)]">Planificación y Simulación</span>
+                    <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400">GERENCIAL</span>
+                </div>
+                <p class="text-sm text-[var(--text-secondary)] mt-2 leading-relaxed">
+                    Uso gerencial para simular y analizar tiempos de flujo de pedidos estimando personal y cuellos de botella.
+                </p>
+                <div class="text-xs font-bold text-blue-500 mt-2 text-right">Abrir Planificador ➔</div>
+            </a>
+
+            <!-- Acceso: Registros -->
+            <a href="{{ url_for('registros') }}" class="shortcut-card-compact p-4 flex flex-col justify-between h-40 no-underline transition-all">
+                <div class="flex justify-between items-center">
+                    <span class="text-sm font-extrabold text-[var(--text-primary)]">Registros e Histórico</span>
+                    <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400">PLANTA</span>
+                </div>
+                <p class="text-sm text-[var(--text-secondary)] mt-2 leading-relaxed">
+                    Uso de planta para visualizar, filtrar e inspeccionar el historial operativo registrado y las desviaciones.
+                </p>
+                <div class="text-xs font-bold text-emerald-500 mt-2 text-right">Ver Histórico ➔</div>
+            </a>
+
+            <!-- Acceso: Producción (Gantt Operarios) -->
+            <a href="{{ url_for('produccion') }}" class="shortcut-card-compact p-4 flex flex-col justify-between h-40 no-underline transition-all">
+                <div class="flex justify-between items-center">
+                    <span class="text-sm font-extrabold text-[var(--text-primary)]">Monitoreo Gantt Planta</span>
+                    <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400">SUPERVISOR / PLANTA</span>
+                </div>
+                <p class="text-sm text-[var(--text-secondary)] mt-2 leading-relaxed">
+                    Uso de planta y supervisores para monitorear operarios activos y la distribución de trabajos en tiempo real.
+                </p>
+                <div class="text-xs font-bold text-amber-500 mt-2 text-right">Ver Gantt en Vivo ➔</div>
+            </a>
+
+            <!-- Acceso: Trazabilidad -->
+            <a href="{{ url_for('trazabilidad') }}" class="shortcut-card-compact p-4 flex flex-col justify-between h-40 no-underline transition-all">
+                <div class="flex justify-between items-center">
+                    <span class="text-sm font-extrabold text-[var(--text-primary)]">Trazabilidad de Componentes</span>
+                    <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400">SUPERVISORES</span>
+                </div>
+                <p class="text-sm text-[var(--text-secondary)] mt-2 leading-relaxed">
+                    Uso de supervisores para rastrear el flujo de componentes y reconstruir rutas de lotes.
+                </p>
+                <div class="text-xs font-bold text-purple-500 mt-2 text-right">Rastrear Pieza ➔</div>
+            </a>
+
+            <!-- Acceso: Estándares KPI -->
+            <a href="{{ url_for('estandares') }}" class="shortcut-card-compact p-4 flex flex-col justify-between h-40 no-underline transition-all">
+                <div class="flex justify-between items-center">
+                    <span class="text-sm font-extrabold text-[var(--text-primary)]">Estándares y OEE</span>
+                    <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-400">SUPERVISORES</span>
+                </div>
+                <p class="text-sm text-[var(--text-secondary)] mt-2 leading-relaxed">
+                    Uso de supervisores para controlar velocidades de ciclo estándar de piezas para auditorías de rendimiento.
+                </p>
+                <div class="text-xs font-bold text-sky-500 mt-2 text-right">Ver Estándares ➔</div>
+            </a>
+
+            <!-- Acceso: Explorador & Vistas SQL -->
+            <a href="{{ url_for('explorador') }}" class="shortcut-card-compact p-4 flex flex-col justify-between h-40 no-underline transition-all">
+                <div class="flex justify-between items-center">
+                    <span class="text-sm font-extrabold text-[var(--text-primary)]">Auditoría del Sistema</span>
+                    <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400">ADMINISTRACIÓN</span>
+                </div>
+                <p class="text-sm text-[var(--text-secondary)] mt-2 leading-relaxed">
+                    Consultas directas a tablas de base de datos y auditoría técnica general del almacén de datos (DW).
+                </p>
+                <div class="text-xs font-bold text-rose-500 mt-2 text-right">Auditar Datos ➔</div>
+            </a>
+
+        </div>
+    </div>
+
+</div>
+
+<!-- DIÁLOGO MODAL DETALLE DE ELEMENTOS EN PROCESO -->
+<div id="details-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+    <!-- Backdrop -->
+    <div class="absolute inset-0 modal-backdrop" onclick="closeDetails()"></div>
+    
+    <!-- Modal Content -->
+    <div class="mes-card w-[95%] md:w-[90%] max-w-5xl xl:max-w-6xl p-6 border flex flex-col gap-4 relative z-10 max-h-[85vh] shadow-2xl" 
+         style="border-color: var(--border-color); background-color: var(--bg-overlay); border-radius: 24px;">
+        
+        <!-- Header -->
+        <div class="flex justify-between items-center border-b pb-3" style="border-color: var(--border-color);">
+            <div>
+                <h4 id="modal-title" class="text-xl md:text-2xl font-black tracking-tight" style="color: var(--text-primary);">Piezas en Proceso</h4>
+                <p id="modal-subtitle" class="text-xs md:text-sm text-[var(--text-muted)]">Órdenes operativas activas en este momento.</p>
+            </div>
+            <button onclick="closeDetails()" class="mes-btn-icon p-2 text-[var(--text-secondary)]">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+
+        <!-- Table Container (Dynamically rendered based on type) -->
+        <div id="modal-table-container" class="overflow-x-auto overflow-y-auto flex-1 pr-1 border rounded-xl" style="border-color: var(--border-color);">
+            <!-- La tabla será insertada dinámicamente aquí por JavaScript -->
+        </div>
+        <div id="modal-empty-message" class="hidden text-center py-12 text-[var(--text-muted)] text-base font-semibold">
+            No hay órdenes activas registradas en esta categoría hoy.
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Cargar el listado de componentes activos inyectado por Python
+const activeItems = {{ active_items|tojson }};
+
+// Abrir el modal de detalles filtrando por categoría de producto
+function openDetails(categoryLabel, filterKey) {
+    // Filtrar elementos activos por nombre de componente
+    const filtered = activeItems.filter(item => {
+        const name = (item.nombre || '').toLowerCase();
+        const matchesCategory = name.includes(filterKey.toLowerCase());
+        // Solo mostrar órdenes en proceso (estado_id 2 o 3)
+        return matchesCategory && (item.estado_id == 2 || item.estado_id == 3);
+    });
+    
+    populateModal(`Detalles: ${categoryLabel}`, filtered, 'producto');
+}
+
+// Abrir el modal de detalles para métricas generales
+function openMetricDetails(type) {
+    let title = '';
+    let subtitle = '';
+    let filtered = [];
+    
+    if (type === 'personal') {
+        title = 'Detalles: Personal Laborando';
+        subtitle = 'Distribución del personal asignado a máquinas en ejecución hoy (proceso activo).';
+        // Solo operarios laborando en vivo (estado_id 2 o 3)
+        filtered = activeItems.filter(item => item.estado_id == 2 || item.estado_id == 3);
+    } else if (type === 'maquinas') {
+        title = 'Detalles: Estado de Máquinas';
+        subtitle = 'Máquinas y puestos de trabajo actualmente activos en planta.';
+        // Solo máquinas con procesos activos (estado_id 2 o 3)
+        filtered = activeItems.filter(item => item.estado_id == 2 || item.estado_id == 3);
+    } else if (type === 'alertas') {
+        title = 'Detalles: Alertas de Calidad / Anomalías';
+        subtitle = 'Historial de órdenes operativas de hoy con desviaciones críticas detectadas por análisis IQR.';
+        // Filtrar anomalías (es_anomalidad = 1) sin importar el estado (finalizado, activo, etc.)
+        filtered = activeItems.filter(item => item.es_anomalidad === 1);
+    }
+    
+    populateModal(title, filtered, type, subtitle);
+}
+
+// Rellenar dinámicamente y abrir el modal
+function populateModal(titleLabel, items, type, customSubtitle = '') {
+    const modal = document.getElementById('details-modal');
+    document.getElementById('modal-title').innerText = titleLabel;
+    
+    const subtitleEl = document.getElementById('modal-subtitle');
+    subtitleEl.innerText = customSubtitle || 'Órdenes operativas activas en este momento.';
+    
+    const tableContainer = document.getElementById('modal-table-container');
+    tableContainer.innerHTML = ''; // Limpiar tabla anterior
+
+    const emptyMsg = document.getElementById('modal-empty-message');
+
+    if (items.length === 0) {
+        tableContainer.classList.add('hidden');
+        emptyMsg.classList.remove('hidden');
+        if (type === 'alertas') {
+            emptyMsg.innerHTML = `
+                <div class="flex flex-col items-center gap-2 text-emerald-500 py-6">
+                    <svg class="w-12 h-12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span class="text-base font-bold">Excelente. No se han detectado anomalías de calidad en el turno de hoy.</span>
+                </div>
+            `;
+        } else {
+            emptyMsg.innerText = 'No hay órdenes activas registradas para esta categoría hoy.';
+        }
+    } else {
+        emptyMsg.classList.add('hidden');
+        tableContainer.classList.remove('hidden');
+        
+        // Crear la tabla con las columnas configuradas para el tipo de datos
+        const table = document.createElement('table');
+        table.className = 'w-full text-left border-collapse min-w-[900px] modal-table';
+        
+        let theadHtml = '';
+        let rowBuilder = null;
+        
+        if (type === 'personal') {
+            // Estructura para Personal Laborando: prioridad en Operador y Operación
+            theadHtml = `
+                <thead>
+                    <tr style="border-bottom: 2px solid var(--border-color); background-color: var(--bg-surface);">
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider">Operador</th>
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider">Proceso / Operación</th>
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider">Componente / Pieza</th>
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider">Código</th>
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider">Estación</th>
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider text-right">Estado</th>
+                    </tr>
+                </thead>
+            `;
+            rowBuilder = (item, badgeClass) => `
+                <td class="py-3.5 px-4 text-sm font-bold text-[var(--text-primary)] whitespace-nowrap">${item.operador}</td>
+                <td class="py-3.5 px-4 text-sm font-semibold text-[var(--text-secondary)] whitespace-nowrap">${item.proceso}</td>
+                <td class="py-3.5 px-4 text-sm md:text-base font-semibold text-[var(--text-primary)] min-w-[240px] max-w-sm whitespace-normal leading-snug break-words">${item.nombre}</td>
+                <td class="py-3.5 px-4 text-sm font-mono font-bold text-blue-500 dark:text-blue-400 whitespace-nowrap">${item.codigo}</td>
+                <td class="py-3.5 px-4 text-sm font-semibold text-[var(--text-secondary)] whitespace-nowrap">${item.estacion}</td>
+                <td class="py-3.5 px-4 text-right whitespace-nowrap">
+                    <span class="text-xs font-black px-2.5 py-1 rounded-md ${badgeClass}">${item.estado}</span>
+                </td>
+            `;
+        } else if (type === 'maquinas') {
+            // Estructura para Máquinas Activas: prioridad en Estación y Proceso
+            theadHtml = `
+                <thead>
+                    <tr style="border-bottom: 2px solid var(--border-color); background-color: var(--bg-surface);">
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider">Estación / Máquina</th>
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider">Proceso Activo</th>
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider">Componente / Pieza</th>
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider">Código</th>
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider">Operador</th>
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider text-right">Estado</th>
+                    </tr>
+                </thead>
+            `;
+            rowBuilder = (item, badgeClass) => `
+                <td class="py-3.5 px-4 text-sm font-bold text-[var(--text-primary)] whitespace-nowrap">${item.estacion}</td>
+                <td class="py-3.5 px-4 text-sm font-semibold text-[var(--text-secondary)] whitespace-nowrap">${item.proceso}</td>
+                <td class="py-3.5 px-4 text-sm md:text-base font-semibold text-[var(--text-primary)] min-w-[240px] max-w-sm whitespace-normal leading-snug break-words">${item.nombre}</td>
+                <td class="py-3.5 px-4 text-sm font-mono font-bold text-blue-500 dark:text-blue-400 whitespace-nowrap">${item.codigo}</td>
+                <td class="py-3.5 px-4 text-sm font-semibold text-[var(--text-secondary)] whitespace-nowrap">${item.operador}</td>
+                <td class="py-3.5 px-4 text-right whitespace-nowrap">
+                    <span class="text-xs font-black px-2.5 py-1 rounded-md ${badgeClass}">${item.estado}</span>
+                </td>
+            `;
+        } else if (type === 'alertas') {
+            // Estructura para Alertas de Calidad: prioridad en el detalle de la Anomalía
+            theadHtml = `
+                <thead>
+                    <tr style="border-bottom: 2px solid var(--border-color); background-color: var(--bg-surface);">
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider">Código</th>
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider">Componente / Pieza</th>
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider">Proceso</th>
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider">Estación</th>
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider">Operador</th>
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider">Detalle de Alerta / Calidad</th>
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider text-right">Estado</th>
+                    </tr>
+                </thead>
+            `;
+            rowBuilder = (item, badgeClass) => {
+                const noteHtml = item.nota_calidad 
+                    ? `<span class="text-xs font-bold text-red-500 block leading-tight mt-0.5">${item.nota_calidad}</span>` 
+                    : `<span class="text-[11px] text-[var(--text-muted)] italic block leading-tight mt-0.5">Desviación en ciclo (Análisis IQR)</span>`;
+                return `
+                    <td class="py-3.5 px-4 text-sm font-mono font-bold text-blue-500 dark:text-blue-400 whitespace-nowrap">${item.codigo}</td>
+                    <td class="py-3.5 px-4 text-sm md:text-base font-semibold text-[var(--text-primary)] min-w-[240px] max-w-sm whitespace-normal leading-snug break-words">${item.nombre}</td>
+                    <td class="py-3.5 px-4 text-sm font-semibold text-[var(--text-secondary)] whitespace-nowrap">${item.proceso}</td>
+                    <td class="py-3.5 px-4 text-sm font-semibold text-[var(--text-secondary)] whitespace-nowrap">${item.estacion}</td>
+                    <td class="py-3.5 px-4 text-sm font-semibold text-[var(--text-secondary)] whitespace-nowrap">${item.operador}</td>
+                    <td class="py-3.5 px-4">
+                        <div class="flex flex-col gap-0.5 whitespace-normal max-w-xs">
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-black text-red-600 dark:text-red-400 bg-red-100/50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 rounded-lg animate-pulse w-max">
+                                ⚠️ Anomalía
+                            </span>
+                            ${noteHtml}
+                        </div>
+                    </td>
+                    <td class="py-3.5 px-4 text-right whitespace-nowrap">
+                        <span class="text-xs font-black px-2.5 py-1 rounded-md ${badgeClass}">${item.estado}</span>
+                    </td>
+                `;
+            };
+        } else {
+            // Estructura por defecto: Productos y Componentes en Proceso
+            theadHtml = `
+                <thead>
+                    <tr style="border-bottom: 2px solid var(--border-color); background-color: var(--bg-surface);">
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider">Código</th>
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider">Componente / Pieza</th>
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider">Proceso</th>
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider">Estación</th>
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider">Operador</th>
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider">Calidad</th>
+                        <th class="py-3 px-4 text-xs font-black uppercase text-[var(--text-muted)] tracking-wider text-right">Estado</th>
+                    </tr>
+                </thead>
+            `;
+            rowBuilder = (item, badgeClass) => {
+                let calidadHtml = `
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100/30 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 rounded-lg">
+                        ✓ Conforme
+                    </span>
+                `;
+                if (item.es_anomalidad === 1) {
+                    calidadHtml = `
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-black text-red-600 dark:text-red-400 bg-red-100/50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 rounded-lg animate-pulse" title="${item.nota_calidad || 'Anomalía de ritmo o calidad'}">
+                            ⚠️ Anomalía
+                        </span>
+                    `;
+                }
+                return `
+                    <td class="py-3.5 px-4 text-sm font-mono font-bold text-blue-500 dark:text-blue-400 whitespace-nowrap">${item.codigo}</td>
+                    <td class="py-3.5 px-4 text-sm md:text-base font-semibold text-[var(--text-primary)] min-w-[240px] max-w-sm md:max-w-md whitespace-normal leading-snug break-words">${item.nombre}</td>
+                    <td class="py-3.5 px-4 text-sm font-semibold text-[var(--text-secondary)] whitespace-nowrap">${item.proceso}</td>
+                    <td class="py-3.5 px-4 text-sm font-semibold text-[var(--text-secondary)] whitespace-nowrap">${item.estacion}</td>
+                    <td class="py-3.5 px-4 text-sm font-semibold text-[var(--text-secondary)] whitespace-nowrap">${item.operador}</td>
+                    <td class="py-3.5 px-4 whitespace-nowrap">${calidadHtml}</td>
+                    <td class="py-3.5 px-4 text-right whitespace-nowrap">
+                        <span class="text-xs font-black px-2.5 py-1 rounded-md ${badgeClass}">${item.estado}</span>
+                    </td>
+                `;
+            };
+        }
+
+        table.innerHTML = theadHtml;
+        const tbody = document.createElement('tbody');
+        tbody.className = 'divide-y divide-[var(--border-color)]';
+        
+        items.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.className = 'transition-colors';
+            
+            // Determinar color de badge de estado
+            let badgeClass = 'text-blue-500 bg-blue-100/40 dark:bg-blue-900/30';
+            const estLower = item.estado.toLowerCase();
+            if (estLower.includes('pausa')) {
+                badgeClass = 'text-amber-500 bg-amber-100/40 dark:bg-amber-900/30';
+            } else if (estLower.includes('finalizado') || estLower.includes('completo')) {
+                badgeClass = 'text-emerald-500 bg-emerald-100/40 dark:bg-emerald-900/30';
+            }
+            
+            tr.innerHTML = rowBuilder(item, badgeClass);
+            tbody.appendChild(tr);
+        });
+        
+        table.appendChild(tbody);
+        tableContainer.appendChild(table);
+    }
+    
+    modal.classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+}
+
+// Cerrar el modal
+function closeDetails() {
+    document.getElementById('details-modal').classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+}
+
+// Cerrar modal al presionar ESC
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        closeDetails();
+    }
+});
+</script>
+{% endblock %}

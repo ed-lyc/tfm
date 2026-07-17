@@ -1,0 +1,25 @@
+# ==========================================
+# 📊 PROCESAMIENTO DE DATOS Y ANALÍTICA
+# ==========================================
+pandas>=2.2.0
+numpy>=1.26.0
+
+# ==========================================
+# 🔌 CONECTIVIDAD A BASE DE DATOS (POSTGRESQL)
+# ==========================================
+# SQLAlchemy es el ORM/Motor de conexión y psycopg2 es el driver nativo
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.9
+
+# ==========================================
+# 🌐 SERVIDOR WEB, API REST Y SEGURIDAD
+# ==========================================
+# Flask para levantar el servidor y flask-cors para evitar bloqueos con el frontend web
+Flask>=3.0.0
+flask-cors>=4.0.0
+
+# ==========================================
+# ⚙️ CONFIGURACIÓN Y BUENAS PRÁCTICAS
+# ==========================================
+# Para leer las credenciales de la DB de forma segura desde un archivo .env
+python-dotenv>=1.0.0

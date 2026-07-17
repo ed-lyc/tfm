@@ -1,0 +1,824 @@
+{% extends 'base.html' %}
+{% block title %}Producción - MES Industrial{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
+<style>
+    main { padding: 0 !important; max-width: 100% !important; }
+    .choices { margin-bottom: 0 !important; }
+
+    .dark .choices__input { color: var(--text-primary) !important; background: transparent !important; }
+    .dark .choices__list--dropdown {
+        background-color: var(--bg-surface) !important;
+        border-color: var(--border-color) !important;
+        color: var(--text-primary) !important; z-index: 50 !important;
+    }
+    .dark .choices__item--choice.is-highlighted { background-color: var(--bg-elevated) !important; }
+    .choices__list--multiple .choices__item {
+        background-color: var(--accent-color) !important; border: none !important;
+        border-radius: 4px !important; padding: 2px 6px !important;
+        margin: 2px !important; font-size: 11px !important;
+    }
+    /* Sección master badge highlight */
+    #filter-seccion + .choices .choices__inner {
+        border-color: var(--accent-color) !important;
+        border-width: 1.5px !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex flex-col min-h-[calc(100vh-64px)] w-full">
+
+    <!-- ── Toolbar ──────────────────────────────────────────────────────── -->
+    <div class="flex flex-col gap-2.5 p-2 mes-card z-20 shrink-0 border-b" style="border-color:var(--border-color)">
+        
+        <!-- Row 1: Title, Zoom presets, Date inputs, and Export -->
+        <div class="flex gap-3 flex-wrap items-center w-full">
+            <div class="hidden md:flex flex-col px-2">
+                <h2 class="text-sm font-bold leading-tight">Producción</h2>
+                <span class="text-[10px] text-[var(--text-muted)]">Planta Activa</span>
+            </div>
+
+            <!-- Centered Date Controls -->
+            <div class="flex items-center gap-3 md:mx-auto flex-wrap">
+                <!-- Date presets -->
+                <div class="date-preset-group">
+                    <button type="button" onclick="zoomToRange('today')" class="date-preset-btn" id="btn-today">Hoy</button>
+                    <button type="button" onclick="zoomToRange('week')"  class="date-preset-btn" id="btn-week">Semana</button>
+                    <button type="button" onclick="zoomToRange('month')" class="date-preset-btn" id="btn-month">Mes</button>
+                    <button type="button" onclick="zoomToRange('all')"   class="date-preset-btn" id="btn-all">Todo</button>
+                </div>
+                <!-- Date inputs -->
+                <div class="flex items-center gap-1.5">
+                    <label class="text-[10px] font-bold" style="color:var(--text-muted)">Desde</label>
+                    <input type="date" id="date-start"
+                        class="text-[10px] px-2 py-1 rounded-md outline-none transition-all">
+                    <label class="text-[10px] font-bold" style="color:var(--text-muted)">Hasta</label>
+                    <input type="date" id="date-end"
+                        class="text-[10px] px-2 py-1 rounded-md outline-none transition-all">
+                    <button onclick="applyDateInputs()" class="toolbar-btn-apply">Buscar</button>
+                </div>
+            </div>
+
+            <button onclick="downloadChartImage()" class="ml-auto px-3 py-1.5 text-xs font-medium rounded-lg flex items-center gap-1 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Exportar
+            </button>
+        </div>
+
+        <!-- Subtle separator line between row 1 and row 2 -->
+        <div class="w-full h-px" style="background:var(--border-color)"></div>
+
+        <!-- Row 2: Smart Filters (Full width, horizontal layout) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-3 items-center w-full">
+            <!-- MASTER: Sección de Planta -->
+            <div class="flex items-center gap-1.5 w-full">
+                <span class="text-[10px] font-bold text-[var(--text-muted)] uppercase shrink-0">🏭 Sec:</span>
+                <div class="flex-grow min-w-0"><select id="filter-seccion" multiple placeholder="Sección..."></select></div>
+            </div>
+
+            <!-- Operador (cascaded from Sección) -->
+            <div class="flex items-center gap-1.5 w-full">
+                <span class="text-[10px] font-bold text-[var(--text-muted)] uppercase shrink-0">Op:</span>
+                <div class="flex-grow min-w-0"><select id="filter-operator" multiple placeholder="Operador..."></select></div>
+            </div>
+
+            <!-- Pieza -->
+            <div class="flex items-center gap-1.5 w-full">
+                <span class="text-[10px] font-bold text-[var(--text-muted)] uppercase shrink-0">Pieza:</span>
+                <div class="flex-grow min-w-0"><select id="filter-piece" multiple placeholder="Pieza..."></select></div>
+            </div>
+
+            <!-- Fase / Proceso -->
+            <div class="flex items-center gap-1.5 w-full">
+                <span class="text-[10px] font-bold text-[var(--text-muted)] uppercase shrink-0">Fase:</span>
+                <div class="flex-grow min-w-0"><select id="filter-process" multiple placeholder="Proceso..."></select></div>
+            </div>
+
+            <!-- Estado -->
+            <div class="flex items-center gap-1.5 w-full">
+                <span class="text-[10px] font-bold text-[var(--text-muted)] uppercase shrink-0">Est:</span>
+                <div class="flex-grow min-w-0"><select id="filter-estado" multiple placeholder="Estado..."></select></div>
+            </div>
+
+            <button onclick="resetFilters()" 
+                class="w-full px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors border text-center justify-center flex items-center"
+                style="border-color:var(--border-color);background:var(--bg-surface);color:var(--text-primary)">
+                Limpiar Filtros
+            </button>
+        </div>
+    </div>
+
+    <!-- ── Chart area ───────────────────────────────────────────────────── -->
+    <div class="flex-1 w-full min-h-0 overflow-y-auto relative">
+        <div id="gantt-loading" class="absolute inset-0 flex flex-col items-center justify-center z-10"
+             style="background:var(--bg-overlay)">
+            <svg class="animate-spin h-10 w-10 mb-3" style="color:var(--accent-color)"
+                 xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="text-sm font-medium" style="color:var(--text-secondary)">Construyendo visualización...</span>
+        </div>
+        <div id="gantt-chart" class="w-full min-h-[500px]"></div>
+        
+        <!-- Tabla de desglose de barras cortas -->
+        <div id="short-bars-container" class="w-full mt-4 pb-6 hidden">
+            <div class="px-4 py-3 bg-[var(--bg-surface)] rounded-xl border border-[var(--border-color)]">
+                <h3 class="text-xs font-bold text-[var(--text-primary)] mb-3">Detalle de Registros Cortos (Auto-Indexado)</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-[10px] sm:text-xs">
+                        <thead class="bg-[var(--bg-elevated)] text-[var(--text-muted)]">
+                            <tr>
+                                <th class="px-3 py-2 font-semibold rounded-tl-lg">Ref</th>
+                                <th class="px-3 py-2 font-semibold">Operador</th>
+                                <th class="px-3 py-2 font-semibold">Código Pieza</th>
+                                <th class="px-3 py-2 font-semibold">Proceso</th>
+                                <th class="px-3 py-2 font-semibold">Duración (min)</th>
+                                <th class="px-3 py-2 font-semibold rounded-tr-lg">Cantidad</th>
+                            </tr>
+                        </thead>
+                        <tbody id="short-bars-body" class="divide-y divide-[var(--border-color)]">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+<script>
+    /* ══════════════════════════════════════════════════════════════════════
+       PRODUCCIÓN GANTT — v_gantt_produccion_tiempo_real
+       Columns: id, operador_alias, seccion_planta, codigo_pieza,
+                fase_proceso, fecha_inicio, fecha_fin,
+                cantidad_bruta, estado_fase
+    ══════════════════════════════════════════════════════════════════════ */
+
+    let myChart             = null;
+    let globalRawData       = [];
+    let currentFilteredData = [];
+    let isUpdatingFilters   = false;
+    let choicesInstances    = {};
+
+    /* ── Helpers ─────────────────────────────────────────────────────── */
+    function isDarkMode() {
+        return document.documentElement.classList.contains('dark');
+    }
+    function getEchartsTheme() {
+        return isDarkMode() ? 'dark' : null;
+    }
+    function debounce(fn, ms) {
+        let t;
+        return function() { clearTimeout(t); t = setTimeout(() => fn.apply(this, arguments), ms); };
+    }
+    function safeTS(val) {
+        if (!val) return Date.now();
+        const t = new Date(val).getTime();
+        return isNaN(t) ? Date.now() : t;
+    }
+
+    /* ══════════════════════════════════════════════════════════════════
+       1. PALETA ADAPTATIVA (Claro / Oscuro)
+    ══════════════════════════════════════════════════════════════════ */
+    function getStatusColor(estadoFase) {
+        const dark = isDarkMode();
+        const e    = (estadoFase || '').toLowerCase();
+
+        if (e.includes('complet') || e.includes('finaliz'))
+            return dark ? '#4ade80' : '#10b981';   /* Verde */
+
+        if (e.includes('cancel') || e.includes('deten'))
+            return dark ? '#f87171' : '#ef4444';   /* Rojo  */
+
+        if (e.includes('paus'))
+            return dark ? '#facc15' : '#d97706';   /* Ámbar */
+
+        if (e.includes('activ') || e.includes('progres') || e.includes('proceso'))
+            return dark ? '#38bdf8' : '#0284c7';   /* Celeste */
+
+        return dark ? '#a78bfa' : '#7c3aed';       /* Fallback morado */
+    }
+
+    /* ══════════════════════════════════════════════════════════════════
+       2. SHIFT GUIDES — markLine 07:00 / 15:30  +  markArea 15:30→17:30
+    ══════════════════════════════════════════════════════════════════ */
+    function getWeekNumber(d) {
+        const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+        const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+        return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+    }
+
+    function buildDynamicTitle() {
+        const sStr = document.getElementById('date-start') ? document.getElementById('date-start').value : '';
+        const sDate = sStr ? new Date(sStr + 'T12:00:00') : new Date();
+        const days = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+        const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+        
+        const selSec = choicesInstances['seccion'] ? choicesInstances['seccion'].getValue(true) : [];
+        const secText = (selSec && selSec.length === 1) ? selSec[0].toUpperCase() : (selSec && selSec.length > 1 ? 'MÚLTIPLES SECCIONES' : 'TODAS LAS SECCIONES');
+        
+        const weekNum = getWeekNumber(sDate);
+        const dateText = `${days[sDate.getDay()]}, ${sDate.getDate()} de ${months[sDate.getMonth()]} de ${sDate.getFullYear()} (Semana N° ${weekNum})`;
+        
+        return `REPORTE DE PRODUCCIÓN | SECCIÓN: ${secText} | ${dateText}`.toUpperCase();
+    }
+
+    function shiftTimestamps(day) {
+        const base = new Date(day);
+        base.setHours(0, 0, 0, 0);
+        const t = base.getTime();
+        return {
+            t07:   t + 7 * 3_600_000,
+            t0710: t + 7 * 3_600_000 + 10 * 60_000,
+            t1530: t + 15 * 3_600_000 + 30 * 60_000,
+            t1730: t + 17 * 3_600_000 + 30 * 60_000
+        };
+    }
+
+    function buildShiftMarks(minTS, maxTS) {
+        const dark      = isDarkMode();
+        const lineColor = dark ? 'rgba(203,213,225,.75)' : 'rgba(71,85,105,.85)';
+        const textCol   = dark ? '#e2e8f0' : '#1e293b';
+        const areaColor = dark ? 'rgba(180,140,60,.25)'  : 'rgba(180,140,60,.13)';
+        const areaStart = dark ? 'rgba(148,163,184,.25)' : 'rgba(148,163,184,.15)';
+
+        const markLines = [];
+        const markAreas = [];
+
+        const startDay = new Date(minTS); startDay.setHours(0, 0, 0, 0);
+        const endDay   = new Date(maxTS); endDay.setHours(0, 0, 0, 0);
+
+        for (let d = new Date(startDay); d <= endDay; d.setDate(d.getDate() + 1)) {
+            const { t07, t0710, t1530, t1730 } = shiftTimestamps(d);
+
+            markLines.push(
+                [{ coord: [t07,   null], symbol: 'none' },
+                 { coord: [t07,   null], symbol: 'none',
+                   lineStyle: { color: lineColor, type: 'dashed', width: 1.5 },
+                   label: { show: true, formatter: '07:00', fontSize: 10, fontWeight: 'bold',
+                            color: textCol, position: 'insideStartTop' } }],
+                [{ coord: [t1530, null], symbol: 'none' },
+                 { coord: [t1530, null], symbol: 'none',
+                   lineStyle: { color: lineColor, type: 'dashed', width: 1.5 },
+                   label: { show: true, formatter: '15:30', fontSize: 10, fontWeight: 'bold',
+                            color: textCol, position: 'insideStartTop' } }]
+            );
+
+            markAreas.push([
+                { coord: [t07, null], itemStyle: { color: areaStart },
+                  label: { show: true, formatter: 'Arranque\nde Turno', position: 'insideTopLeft', color: textCol, fontWeight: 'bold', fontSize: 10 } },
+                { coord: [t0710, null] }
+            ]);
+
+            markAreas.push([
+                { coord: [t1530, null], itemStyle: { color: areaColor },
+                  label: { show: true, formatter: 'Horas Extra', position: 'insideTop', color: textCol, fontWeight: 'bold', fontSize: 10 } },
+                { coord: [t1730, null] }
+            ]);
+        }
+
+        return { markLines, markAreas };
+    }
+
+    /* ══════════════════════════════════════════════════════════════════
+       3. OPTIMIZAR VENTANA TEMPORAL
+          Un día → encuadre por hora (±10 min).
+          Multi-día → escala libre.
+    ══════════════════════════════════════════════════════════════════ */
+    const MARGIN_MS = 10 * 60 * 1000;
+
+    function optimizarVentanaTemporal(datosFiltrados) {
+        if (!datosFiltrados.length)
+            return { min: 'dataMin', max: 'dataMax', singleDay: false };
+
+        const sStr = document.getElementById('date-start') ? document.getElementById('date-start').value : '';
+        const eStr = document.getElementById('date-end') ? document.getElementById('date-end').value : '';
+        
+        const isSingleDay = (sStr && eStr && sStr === eStr);
+
+        if (isSingleDay) {
+            const tStart = new Date(sStr + 'T00:00:00').getTime();
+            const tEnd   = new Date(sStr + 'T23:59:59').getTime();
+
+            let allMin = Infinity, allMax = -Infinity;
+            datosFiltrados.forEach(item => {
+                const s = safeTS(item.fecha_inicio);
+                const e = safeTS(item.fecha_fin);
+                if (s <= tEnd && e >= tStart) {
+                    if (s < allMin) allMin = s;
+                    if (e > allMax) allMax = e;
+                }
+            });
+
+            if (allMin !== Infinity && allMax !== -Infinity) {
+                return { min: allMin - MARGIN_MS, max: allMax + MARGIN_MS, singleDay: true };
+            }
+            return { min: tStart, max: tEnd, singleDay: true };
+        }
+
+        return { min: 'dataMin', max: 'dataMax', singleDay: false };
+    }
+
+    function getBaseOption() {
+        const dark = isDarkMode();
+        return {
+            backgroundColor: 'transparent',
+            title: {
+                text: '',
+                left: 'center',
+                top: 5,
+                textStyle: { fontSize: 12.5, fontWeight: 'bold', color: dark ? '#f8fafc' : '#0f172a' }
+            },
+            legend: { show: false },
+            tooltip: { trigger: 'item', enterable: false, confine: true, formatter: tooltipFormatter },
+            dataZoom: [
+                {
+                    type: 'slider', show: true, top: 30, height: 22,
+                    xAxisIndex: [0], filterMode: 'weakFilter',
+                    borderColor: 'transparent',
+                    fillerColor: 'rgba(79,70,229,.10)',
+                    handleStyle: { color: '#4f46e5', borderColor: '#4f46e5' }
+                },
+                { type: 'inside', xAxisIndex: [0], filterMode: 'weakFilter' }
+            ],
+            grid: { top: 85, bottom: 20, left: 10, right: 20, containLabel: true },
+            xAxis: {
+                type: 'time', position: 'top',
+                splitLine: { show: true, lineStyle: { type: 'dashed', opacity: 0.4 } },
+                axisLabel: { fontSize: 11 }
+            },
+            yAxis: {
+                type: 'category', data: [], inverse: true,
+                axisTick: { show: false },
+                axisLine: { show: false },
+                axisLabel: { fontWeight: 'bold', overflow: 'truncate', width: 155, fontSize: 11 }
+            },
+            series: [
+                {
+                    type: 'custom',
+                    /* ══════════════════════════════════════════════════════
+                       4. DOUBLE-ROW LABEL en renderItem / BARRAS CORTAS
+                       value[7] = refId (si es barra muy corta)
+                    ══════════════════════════════════════════════════════ */
+                    renderItem: function(params, api) {
+                        const catIndex  = api.value(0);
+                        const startPx   = api.coord([api.value(1), catIndex]);
+                        const endPx     = api.coord([api.value(2), catIndex]);
+                        const rowHeight = api.size([0, 1])[1];
+                        const barH      = rowHeight * 0.82;
+                        const barW      = Math.max(endPx[0] - startPx[0], 2);
+
+                        const rectShape = echarts.graphic.clipRectByRect(
+                            { x: startPx[0], y: startPx[1] - barH / 2, width: barW, height: barH },
+                            { x: params.coordSys.x, y: params.coordSys.y,
+                              width: params.coordSys.width, height: params.coordSys.height }
+                        );
+                        if (!rectShape) return;
+
+                        const LINE1 = api.value(3);
+                        const LINE2 = api.value(6);
+                        const REFID = api.value(7);
+
+                        const MIN_W_BOTH = 70;
+                        const MIN_W_ONE  = 35; // Umbral de 35px para barras ultra-cortas
+                        const cx   = rectShape.x + rectShape.width / 2;
+                        const cy   = rectShape.y + rectShape.height / 2;
+                        const maxW = rectShape.width - 10;
+                        const TEXT_COL = isDarkMode() ? '#ffffff' : '#0f172a';
+
+                        const children = [
+                            { type: 'rect', shape: rectShape, style: api.style({ stroke: isDarkMode() ? '#0f172a' : '#ffffff', lineWidth: 1.5 }) }
+                        ];
+
+                        if (REFID) {
+                            /* ── Referencia para barra corta ── */
+                            children.push({
+                                type: 'text',
+                                style: {
+                                    x: cx, y: cy, text: `[${REFID}]`,
+                                    fill: TEXT_COL,
+                                    textAlign: 'center', textVerticalAlign: 'middle',
+                                    fontSize: 11, fontWeight: 'bold', fontFamily: 'inherit'
+                                }
+                            });
+                        } else if (barW >= MIN_W_BOTH && barH >= 32) {
+                            /* ── Doble fila ── */
+                            children.push(
+                                {
+                                    type: 'text',
+                                    style: {
+                                        x: cx, y: cy - 7, text: LINE1,
+                                        fill: TEXT_COL,
+                                        textAlign: 'center', textVerticalAlign: 'middle',
+                                        fontSize: 11.5, fontWeight: 'bold', fontFamily: 'inherit',
+                                        truncate: { outerWidth: maxW, ellipsis: '…' }
+                                    }
+                                },
+                                {
+                                    type: 'text',
+                                    style: {
+                                        x: cx, y: cy + 7, text: LINE2,
+                                        fill: TEXT_COL,
+                                        textAlign: 'center', textVerticalAlign: 'middle',
+                                        fontSize: 10, fontWeight: 'bold', fontFamily: 'inherit',
+                                        truncate: { outerWidth: maxW, ellipsis: '…' }
+                                    }
+                                }
+                            );
+                        } else if (barW >= MIN_W_ONE) {
+                            /* ── Una sola fila ── */
+                            children.push({
+                                type: 'text',
+                                style: {
+                                    x: cx, y: cy, text: LINE1,
+                                    fill: TEXT_COL,
+                                    textAlign: 'center', textVerticalAlign: 'middle',
+                                    fontSize: 11, fontWeight: 'bold', fontFamily: 'inherit',
+                                    truncate: { outerWidth: maxW, ellipsis: '…' }
+                                }
+                            });
+                        }
+                        return { type: 'group', children };
+                    },
+                    encode: { x: [1, 2], y: 0 },
+                    data: []
+                }
+            ]
+        };
+    }
+
+    /* ── Tooltip ─────────────────────────────────────────────────────── */
+    function tooltipFormatter(params) {
+        if (!params.value || params.value.length < 5) return '';
+        const d      = params.value[4];
+        const fi     = d.fecha_inicio ? new Date(d.fecha_inicio).toLocaleString('es-ES') : 'N/A';
+        const ff     = d.fecha_fin    ? new Date(d.fecha_fin).toLocaleString('es-ES')    : 'En progreso';
+        const estado = d.estado_fase  || 'N/A';
+        const color  = getStatusColor(d.estado_fase);
+        return [
+            '<div style="font-size:12px;line-height:1.7;min-width:205px">',
+            `<b style="font-size:13px">${d.codigo_pieza || 'S/C'}</b>`,
+            `<span style="margin-left:6px;padding:1px 6px;border-radius:999px;font-size:10px;font-weight:700;`,
+            `background:${color}33;color:${color}">${estado}</span><br>`,
+            `<b>Operador:</b> ${d.operador_alias || 'N/A'}<br>`,
+            `<b>Sección:</b> ${d.seccion_planta || 'N/A'}<br>`,
+            `<b>Fase:</b> ${d.fase_proceso || 'N/A'}<br>`,
+            `<b>Cant. Bruta:</b> ${d.cantidad_bruta != null ? d.cantidad_bruta : '—'}<br>`,
+            '<hr style="margin:4px 0;opacity:.15">',
+            `<b>Inicio:</b> ${fi}<br>`,
+            `<b>Fin:</b> ${ff}`,
+            '</div>'
+        ].join('');
+    }
+
+    /* ══════════════════════════════════════════════════════════════════
+       SMART CASCADING FILTER
+    ══════════════════════════════════════════════════════════════════ */
+    function applySmartFilters() {
+        if (isUpdatingFilters) return;
+        isUpdatingFilters = true;
+
+        const selSeccion = choicesInstances['seccion']  ? choicesInstances['seccion'].getValue(true)  || [] : [];
+        const selOp      = choicesInstances['operator'] ? choicesInstances['operator'].getValue(true) || [] : [];
+        const selPiece   = choicesInstances['piece']    ? choicesInstances['piece'].getValue(true)    || [] : [];
+        const selProc    = choicesInstances['process']  ? choicesInstances['process'].getValue(true)  || [] : [];
+        const selEstado  = choicesInstances['estado']   ? choicesInstances['estado'].getValue(true)   || [] : [];
+
+        currentFilteredData = globalRawData.filter(item => {
+            if (selSeccion.length && !selSeccion.includes(item.seccion_planta || 'N/A')) return false;
+            if (selOp.length      && !selOp.includes(item.operador_alias      || 'N/A')) return false;
+            if (selPiece.length   && !selPiece.includes(item.codigo_pieza     || 'N/A')) return false;
+            if (selProc.length    && !selProc.includes(item.fase_proceso       || 'N/A')) return false;
+            if (selEstado.length  && !selEstado.includes(item.estado_fase      || 'N/A')) return false;
+            return true;
+        });
+
+        updateChartData(currentFilteredData, null);
+
+        const sectionPool = selSeccion.length
+            ? globalRawData.filter(d => selSeccion.includes(d.seccion_planta || 'N/A'))
+            : globalRawData;
+
+        const avSeccion = new Set();
+        globalRawData.forEach(d => avSeccion.add(d.seccion_planta || 'N/A'));
+
+        const avOp = new Set(selOp);
+        sectionPool.forEach(d => avOp.add(d.operador_alias || 'N/A'));
+
+        const avPiece  = new Set(selPiece);
+        const avProc   = new Set(selProc);
+        const avEstado = new Set(selEstado);
+        currentFilteredData.forEach(d => {
+            avPiece.add(d.codigo_pieza  || 'N/A');
+            avProc.add(d.fase_proceso    || 'N/A');
+            avEstado.add(d.estado_fase   || 'N/A');
+        });
+
+        const syncChoices = (key, validSet, selectedArr) => {
+            if (!choicesInstances[key]) return;
+            const opts = Array.from(validSet).sort().map(v => ({
+                value: v, label: v, selected: selectedArr.includes(v)
+            }));
+            choicesInstances[key].clearStore();
+            choicesInstances[key].setChoices(opts, 'value', 'label', true);
+        };
+        syncChoices('seccion',  avSeccion, selSeccion);
+        syncChoices('operator', avOp,      selOp);
+        syncChoices('piece',    avPiece,   selPiece);
+        syncChoices('process',  avProc,    selProc);
+        syncChoices('estado',   avEstado,  selEstado);
+
+        isUpdatingFilters = false;
+    }
+
+    window.resetFilters = function() {
+        Object.values(choicesInstances).forEach(c => c.removeActiveItems && c.removeActiveItems());
+        applySmartFilters();
+    };
+
+    /* ── Chart rendering ─────────────────────────────────────────────── */
+    function updateChartData(data, categoriesList) {
+        let categories = categoriesList;
+        if (!categories) {
+            categories = [];
+            data.forEach(item => {
+                const cat = item.operador_alias || 'Desconocido';
+                if (!categories.includes(cat)) categories.push(cat);
+            });
+        }
+
+        /* ── Req. 3: optimal time window ── */
+        const tOpt = optimizarVentanaTemporal(data);
+
+        /* Determinar rango temporal visible para ancho de barras */
+        let viewMin = 0, viewMax = 1;
+        try {
+            const comp = myChart.getModel().getComponent('xAxis', 0);
+            if (comp) {
+                const extent = comp.axis.scale.getExtent();
+                viewMin = extent[0]; viewMax = extent[1];
+            }
+        } catch(e) {}
+        if (!viewMin || !viewMax || viewMax <= viewMin) {
+            viewMin = tOpt.min === 'dataMin' ? (data.length ? Math.min(...data.map(d=>safeTS(d.fecha_inicio))) : 0) : tOpt.min;
+            viewMax = tOpt.max === 'dataMax' ? (data.length ? Math.max(...data.map(d=>safeTS(d.fecha_fin))) : 1) : tOpt.max;
+        }
+
+        const gridW = Math.max(myChart.getWidth() - 30, 100);
+        const msPerPx = (viewMax - viewMin) / gridW;
+
+        /* ── Req. 4: shift guides extent ── */
+        const guideMin = tOpt.singleDay
+            ? tOpt.min
+            : (data.length ? Math.min(...data.map(d => safeTS(d.fecha_inicio))) : Date.now());
+        const guideMax = tOpt.singleDay
+            ? tOpt.max
+            : (data.length ? Math.max(...data.map(d => safeTS(d.fecha_fin)))   : Date.now());
+
+        const { markLines, markAreas } = buildShiftMarks(guideMin, guideMax);
+
+        let refCounter = 1;
+        const shortBars = [];
+
+        /* ── Req. 1 + 2: build data points with double-row labels & adaptive color ── */
+        const chartData = data.map(item => {
+            const cat      = item.operador_alias || 'Desconocido';
+            const catIndex = categories.indexOf(cat);
+            if (catIndex === -1) return null;
+
+            const startTS = safeTS(item.fecha_inicio);
+            const endTS   = safeTS(item.fecha_fin);
+            const color   = getStatusColor(item.estado_fase);
+
+            const line1   = item.codigo_pieza || 'S/C';
+            const line2   = `${item.fase_proceso || 'N/A'} ${item.cantidad_bruta ?? 0}u`;
+
+            let refId = null;
+            if (startTS <= viewMax && endTS >= viewMin) {
+                const barW = (endTS - startTS) / msPerPx;
+                if (barW < 35 && barW > 0) {
+                    refId = refCounter++;
+                    shortBars.push({ refId, item, startTS, endTS });
+                }
+            }
+
+            return {
+                name: line1,
+                /* value[0]=catIdx [1]=startTS [2]=endTS [3]=line1 [4]=rawItem [5]=color [6]=line2 [7]=refId */
+                value: [catIndex, startTS, endTS, line1, item, color, line2, refId],
+                itemStyle: { color, borderRadius: 3, opacity: 0.93 }
+            };
+        }).filter(Boolean);
+
+        /* ── Actualizar Tabla de Desglose Inferior ── */
+        const tbody = document.getElementById('short-bars-body');
+        const container = document.getElementById('short-bars-container');
+        if (shortBars.length > 0) {
+            tbody.innerHTML = shortBars.map(sb => {
+                const d = sb.item;
+                const duration = Math.round((sb.endTS - sb.startTS) / 60000);
+                return `
+                    <tr class="hover:bg-[var(--bg-overlay)] transition-colors text-[var(--text-primary)]">
+                        <td class="px-3 py-2 font-bold whitespace-nowrap">[${sb.refId}]</td>
+                        <td class="px-3 py-2 whitespace-nowrap">${d.operador_alias || 'N/A'}</td>
+                        <td class="px-3 py-2 font-semibold whitespace-nowrap">${d.codigo_pieza || 'N/A'}</td>
+                        <td class="px-3 py-2 whitespace-nowrap">${d.fase_proceso || 'N/A'}</td>
+                        <td class="px-3 py-2 whitespace-nowrap">${duration} min</td>
+                        <td class="px-3 py-2 font-bold whitespace-nowrap">${d.cantidad_bruta ?? 0}</td>
+                    </tr>
+                `;
+            }).join('');
+            container.classList.remove('hidden');
+        } else {
+            tbody.innerHTML = '';
+            container.classList.add('hidden');
+        }
+
+        /* ── Dynamic height ── */
+        const baseH = Math.max(categories.length * 54 + 130, 500);
+        myChart.getDom().style.height = baseH + 'px';
+        myChart.resize();
+
+        /* ── Single setOption call covers everything ── */
+        myChart.setOption({
+            title: { text: buildDynamicTitle() },
+            xAxis: { min: tOpt.min, max: tOpt.max },
+            yAxis: { data: categories },
+            series: [
+                {
+                    data: chartData,
+                    markLine: { silent: true, symbol: ['none', 'none'], animation: false, data: markLines }
+                }
+            ]
+        });
+    }
+
+    /* ── Dynamic Y-axis on zoom ──────────────────────────────────────── */
+    function updateDynamicYAxis() {
+        if (!myChart || !currentFilteredData.length) return;
+        let zoomMin = 0, zoomMax = Date.now() * 2;
+        try {
+            const comp = myChart.getModel().getComponent('xAxis', 0);
+            if (comp) {
+                const extent = comp.axis.scale.getExtent();
+                zoomMin = extent[0];
+                zoomMax = extent[1];
+            }
+        } catch(e) {}
+
+        const visible = new Set();
+        currentFilteredData.forEach(item => {
+            const s = safeTS(item.fecha_inicio);
+            const e = safeTS(item.fecha_fin);
+            if (s <= zoomMax && e >= zoomMin) visible.add(item.operador_alias || 'Desconocido');
+        });
+        const cats = visible.size > 0 ? Array.from(visible) : ['Sin Información Visible'];
+        updateChartData(currentFilteredData, cats);
+    }
+
+    /* ── Zoom preset buttons ─────────────────────────────────────────── */
+    window.zoomToRange = function(range) {
+        if (!myChart) return;
+        const r = range === 'today' ? MES.todayRange()
+                : range === 'week'  ? MES.weekRange()
+                : range === 'month' ? MES.monthRange() : null;
+        if (r) {
+            document.getElementById('date-start').value = MES.fmtDate(r.s);
+            document.getElementById('date-end').value   = MES.fmtDate(r.e);
+        }
+        
+        if (range === 'all') {
+            myChart.dispatchAction({ type: 'dataZoom', dataZoomIndex: 0, start: 0, end: 100 });
+        } else if (range === 'today') {
+            /* Let the auto-zoom logic handle min/max, just clear the dataZoom */
+            myChart.dispatchAction({ type: 'dataZoom', dataZoomIndex: 0, start: 0, end: 100 });
+        } else {
+            MES.applyGanttZoom(myChart, range);
+        }
+
+        // Highlight active preset button
+        ['today','week','month','all'].forEach(k => {
+            const btn = document.getElementById('btn-' + k);
+            if (btn) {
+                if (k === range) btn.classList.add('active');
+                else btn.classList.remove('active');
+            }
+        });
+        
+        /* Force chart update with new date range before syncing Y-axis */
+        updateChartData(currentFilteredData, null);
+        setTimeout(updateDynamicYAxis, 60);
+    };
+
+    window.applyDateInputs = function() {
+        const sStr = document.getElementById('date-start').value;
+        const eStr = document.getElementById('date-end').value;
+        const s = new Date(sStr + 'T00:00:00');
+        const e = new Date(eStr + 'T23:59:59');
+        
+        if (!isNaN(s) && !isNaN(e) && myChart) {
+            // Remove active preset buttons
+            ['today','week','month','all'].forEach(k => {
+                const btn = document.getElementById('btn-' + k);
+                if (btn) btn.classList.remove('active');
+            });
+
+            updateChartData(currentFilteredData, null);
+            if (sStr === eStr) {
+                myChart.dispatchAction({ type: 'dataZoom', dataZoomIndex: 0, start: 0, end: 100 });
+            } else {
+                myChart.dispatchAction({
+                    type: 'dataZoom', dataZoomIndex: 0,
+                    startValue: s.getTime(), endValue: e.getTime()
+                });
+            }
+            setTimeout(updateDynamicYAxis, 60);
+        }
+    };
+
+    /* ── INIT ────────────────────────────────────────────────────────── */
+    document.addEventListener('DOMContentLoaded', function() {
+        const chartDom = document.getElementById('gantt-chart');
+        myChart = echarts.init(chartDom, getEchartsTheme());
+        myChart.setOption(getBaseOption());
+
+        const tr = MES.todayRange();
+        document.getElementById('date-start').value = MES.fmtDate(tr.s);
+        document.getElementById('date-end').value   = MES.fmtDate(tr.e);
+
+        ['date-start', 'date-end'].forEach(id => {
+            document.getElementById(id).addEventListener('change', () => {
+                applyDateInputs();
+            });
+        });
+
+        ['seccion', 'operator', 'piece', 'process', 'estado'].forEach(key => {
+            const el = document.getElementById('filter-' + key);
+            if (!el) return;
+            choicesInstances[key] = new Choices(el, {
+                removeItemButton: true, searchEnabled: true,
+                itemSelectText: '', placeholder: true
+            });
+            el.addEventListener('change', () => applySmartFilters());
+        });
+
+        fetch('/api/produccion/gantt')
+            .then(r => r.json())
+            .then(data => {
+                if (data.error) { console.error('API error:', data.error); return; }
+                document.getElementById('gantt-loading').classList.add('hidden');
+                globalRawData = data;
+                applySmartFilters();
+                setTimeout(() => zoomToRange('today'), 150);
+            })
+            .catch(err => {
+                console.error('Fetch error:', err);
+                document.getElementById('gantt-loading').classList.add('hidden');
+            });
+
+        myChart.on('dataZoom', debounce(updateDynamicYAxis, 250));
+        window.addEventListener('resize', () => myChart && myChart.resize());
+
+        /* ── Theme toggle: full re-render with new color palette ── */
+        new MutationObserver(mutations => {
+            mutations.forEach(m => {
+                if (m.attributeName === 'class' && myChart) {
+                    const dz = myChart.getOption().dataZoom[0];
+                    const sv = dz ? dz.startValue : null;
+                    const ev = dz ? dz.endValue   : null;
+                    myChart.dispose();
+                    myChart = echarts.init(document.getElementById('gantt-chart'), getEchartsTheme());
+                    myChart.setOption(getBaseOption());
+                    
+                    /* Re-render with ADAPTIVE COLORS for new theme */
+                    updateChartData(currentFilteredData, null);
+
+                    /* Restore zoom position */
+                    if (sv && ev) {
+                        myChart.dispatchAction({
+                            type: 'dataZoom', dataZoomIndex: 0,
+                            startValue: sv, endValue: ev
+                        });
+                    }
+                }
+            });
+        }).observe(document.documentElement, { attributes: true });
+    });
+
+    /* ── Export ──────────────────────────────────────────────────────── */
+    window.downloadChartImage = function() {
+        if (!myChart) return;
+        const isDark = document.documentElement.classList.contains('dark');
+        const url = myChart.getDataURL({ type: 'png', backgroundColor: isDark ? '#1e293b' : '#ffffff', pixelRatio: 2 });
+        const a = document.createElement('a');
+        a.download = 'Gantt_Produccion.png'; a.href = url; a.click();
+    };
+</script>
+{% endblock %}

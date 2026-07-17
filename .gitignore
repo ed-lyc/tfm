@@ -1,0 +1,40 @@
+# ==========================================================
+#  Credenciales y entorno
+# ==========================================================
+.env
+.env.*
+!.env.example
+venv/
+.venv/
+
+# ==========================================================
+#  Datos (NO se publican por confidencialidad)
+# ==========================================================
+data/
+datos simulados/
+*.csv
+*.xlsx
+*.xls
+# (los datos operativos, reales o simulados, no se versionan)
+
+# ==========================================================
+#  Artefactos locales / material sin relevancia (no versionado)
+# ==========================================================
+_local/
+
+# ==========================================================
+#  Python
+# ==========================================================
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+
+# ==========================================================
+#  Sistema operativo / editores
+# ==========================================================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log

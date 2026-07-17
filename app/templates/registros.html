@@ -1,0 +1,1311 @@
+{% extends 'base.html' %}
+{% block title %}Registros de Ejecución - MES Industrial{% endblock %}
+
+{% block head %}
+<!-- Tabulator CSS -->
+<link href="https://unpkg.com/tabulator-tables@6.2.1/dist/css/tabulator.min.css" rel="stylesheet">
+<!-- Tabulator JS in Head to prevent script load race conditions -->
+<script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.2.1/dist/js/tabulator.min.js"></script>
+<!-- ECharts CDN -->
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+
+<style>
+/* ─── Tabulator Light Theme ────────────────────────────────────────────────── */
+.tabulator { 
+  background: var(--bg-surface) !important; 
+  border: 1px solid var(--border-color) !important; 
+  font-family: var(--font-primary) !important;
+  font-size: 13px !important; 
+}
+.tabulator-header { 
+  background: var(--bg-surface) !important; 
+  color: var(--text-primary) !important; 
+  font-weight: 700 !important; 
+  border-bottom: 2px solid var(--border-color) !important; 
+}
+.tabulator-header .tabulator-col { 
+  background: var(--bg-surface) !important; 
+  border-right: 1px solid var(--border-color) !important; 
+}
+.tabulator-row { 
+  background: var(--bg-page) !important; 
+  border-bottom: 1px solid var(--border-color) !important; 
+  color: var(--text-primary) !important; 
+  font-weight: 500 !important;
+}
+.tabulator-row.tabulator-row-even { 
+  background: var(--bg-surface) !important; 
+}
+.tabulator-row:hover { 
+  background: var(--bg-surface-hover) !important; 
+}
+.tabulator-footer { 
+  background: var(--bg-surface) !important; 
+  border-top: 1px solid var(--border-color) !important; 
+  color: var(--text-secondary) !important; 
+}
+.tabulator-header input { 
+  border: 1px solid var(--border-color) !important; 
+  padding: 4px 8px !important; 
+  border-radius: 8px !important; 
+  width: 100% !important; 
+  box-sizing: border-box !important; 
+  background: var(--bg-page) !important; 
+  color: var(--text-primary) !important; 
+  margin-top: 5px !important; 
+  font-size: 11px !important; 
+}
+.tabulator-col-content { 
+  padding: 8px !important; 
+  display: flex; 
+  flex-direction: column; 
+  justify-content: space-between; 
+}
+.tabulator-page { 
+  color: var(--text-secondary) !important; 
+  background: var(--bg-surface) !important; 
+  border: 1px solid var(--border-color) !important; 
+}
+.tabulator-page.active { 
+  color: #fff !important; 
+  background: var(--accent-color) !important; 
+}
+
+/* ─── Deviation cell colors ───────────────────────────────────────────────── */
+.dev-ok       { background: rgba( 34, 197,  94, .12) !important; color: #166534 !important; font-weight: 700; }
+.dev-warn-neg { background: rgba(234, 179,   8, .13) !important; color: #854d0e !important; font-weight: 700; }
+.dev-bad-neg  { background: rgba(239,  68,  68, .14) !important; color: #991b1b !important; font-weight: 800; }
+.dev-warn-pos { background: rgba( 59, 130, 246, .12) !important; color: #1e40af !important; font-weight: 700; }
+.dev-bad-pos  { background: rgba(239,  68,  68, .16) !important; color: #7f1d1d !important; font-weight: 800; }
+
+.dark .dev-ok       { background: rgba( 34, 197,  94, .18) !important; color: #86efac !important; }
+.dark .dev-warn-neg { background: rgba(234, 179,   8, .18) !important; color: #fde047 !important; }
+.dark .dev-bad-neg  { background: rgba(239,  68,  68, .20) !important; color: #fca5a5 !important; }
+.dark .dev-warn-pos { background: rgba( 96, 165, 250, .18) !important; color: #93c5fd !important; }
+.dark .dev-bad-pos  { background: rgba(239,  68,  68, .22) !important; color: #fca5a5 !important; }
+
+/* ─── Quality note cell ───────────────────────────────────────────────────── */
+.quality-alert { 
+  background: rgba(239, 68, 68, .10) !important; 
+  color: #b91c1c !important; 
+  font-weight: 700; 
+}
+.dark .quality-alert { 
+  background: rgba(239, 68, 68, .18) !important; 
+  color: #fca5a5 !important; 
+}
+
+/* ─── Filter bar styles ───────────────────────────────────────────────────── */
+.filter-group { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 6px; 
+}
+.filter-label { 
+  font-size: 10px; 
+  font-weight: 700; 
+  text-transform: uppercase; 
+  letter-spacing: .06em; 
+  color: var(--text-muted); 
+}
+.filter-input {
+  padding: 8px 12px; 
+  border-radius: 10px; 
+  font-size: 12px; 
+  outline: none;
+  background: var(--bg-surface); 
+  color: var(--text-primary);
+  border: 1px solid var(--border-color); 
+  transition: all 0.2s ease;
+}
+.filter-input:focus { 
+  border-color: var(--accent-color); 
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15); 
+}
+.preset-btn {
+  padding: 8px 12px; 
+  font-size: 11px; 
+  font-weight: 700; 
+  background: transparent; 
+  color: var(--text-secondary);
+  border: none; 
+  cursor: pointer; 
+  transition: all 0.15s ease;
+}
+.preset-btn.active { 
+  background: rgba(59, 130, 246, 0.12); 
+  color: var(--accent-color); 
+}
+.preset-btn:not(.active):hover { 
+  background: var(--bg-surface-hover); 
+}
+
+.qpill {
+  display: inline-flex; 
+  align-items: center; 
+  gap: 8px; 
+  padding: 6px 12px;
+  border-radius: 10px; 
+  font-size: 12px; 
+  font-weight: 600; 
+  cursor: pointer;
+  border: 1px solid var(--border-color); 
+  background: var(--bg-surface);
+  transition: all 0.2s ease;
+}
+.qpill.on { 
+  border-color: var(--accent-color); 
+  background: rgba(59, 130, 246, 0.08); 
+  color: var(--text-primary); 
+}
+.qpill input[type="checkbox"] { 
+  width: 14px; 
+  height: 14px; 
+  accent-color: var(--accent-color); 
+  cursor: pointer; 
+}
+.qpill input[type="number"] {
+  width: 52px; 
+  text-align: center; 
+  padding: 2px 4px; 
+  border-radius: 6px;
+  font-size: 11px; 
+  background: var(--bg-page); 
+  color: var(--text-primary);
+  border: 1px solid var(--border-color); 
+  outline: none;
+}
+
+/* ─── Dev legend ──────────────────────────────────────────────────────────── */
+.dev-legend { 
+  display: flex; 
+  gap: 12px; 
+  align-items: center; 
+  flex-wrap: wrap; 
+}
+.dev-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dev-dot { 
+  width: 8px; 
+  height: 8px; 
+  border-radius: 50%; 
+  display: inline-block; 
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex flex-col w-full h-[calc(100vh-120px)] gap-4">
+
+  <!-- ════════════════════════════════════════════════════════
+       PANEL DE FILTROS Y CONTROLES UNIFICADO (UX PREMIUM)
+       ════════════════════════════════════════════════════════ -->
+  <div class="mes-card shrink-0 p-3 border flex flex-col gap-3" style="border-color:var(--border-color)">
+      
+      <!-- Fila 1: Título, Presets de Fecha y Acciones del Tablero -->
+      <div class="flex gap-3 flex-wrap items-center w-full">
+          <!-- Title / Info -->
+          <div class="hidden md:flex flex-col pr-2 border-r" style="border-color:var(--border-color)">
+              <h2 class="text-sm font-bold leading-tight">Auditoría y Registros</h2>
+              <span class="text-[10px]" style="color:var(--text-muted)">Historial en Planta</span>
+          </div>
+
+          <!-- Date presets & Date inputs (Centered visually using mx-auto) -->
+          <div class="flex items-center gap-3 md:mx-auto flex-wrap">
+              <div class="date-preset-group">
+                  <button id="p-today" class="date-preset-btn" onclick="setPreset('today')">Hoy</button>
+                  <button id="p-week"  class="date-preset-btn active" onclick="setPreset('week')">Semana</button>
+                  <button id="p-month" class="date-preset-btn" onclick="setPreset('month')">Mes</button>
+              </div>
+
+              <div class="flex items-center gap-1.5">
+                  <label class="text-[10px] font-bold" style="color:var(--text-muted)">Desde</label>
+                  <input type="date" id="filter-start" class="text-[10px] px-2 py-1 rounded-md outline-none transition-all" oninput="onDateInput()" onchange="onDateInput()">
+                  <label class="text-[10px] font-bold" style="color:var(--text-muted)">Hasta</label>
+                  <input type="date" id="filter-end" class="text-[10px] px-2 py-1 rounded-md outline-none transition-all" oninput="onDateInput()" onchange="onDateInput()">
+                  <button id="btn-apply-dates" onclick="applySearch()" class="toolbar-btn-apply">Buscar</button>
+              </div>
+          </div>
+
+          <!-- Actions / Badges (Right-aligned) -->
+          <div class="flex items-center gap-2 ml-auto">
+              <div id="table-status" class="text-[10px] font-bold px-2 py-1 rounded-lg border shrink-0" style="background:var(--bg-surface);border-color:var(--border-color);color:var(--text-secondary)">
+                  — registros
+              </div>
+              <button id="btn-toggle-view" onclick="toggleView()" class="px-3 py-1.5 text-xs font-semibold rounded-lg border flex items-center gap-1 transition-all" style="background:var(--bg-surface);border-color:var(--border-color);color:var(--text-primary)">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z"/></svg>
+                  Ver Gráfico
+              </button>
+              <button id="download-csv" onclick="exportCSV()" class="px-3 py-1.5 text-xs font-semibold rounded-lg border flex items-center gap-1 transition-all" style="background:var(--bg-surface);border-color:var(--border-color);color:var(--text-primary)">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                  CSV
+              </button>
+              <button id="download-chart" onclick="exportChartImage()" class="px-3 py-1.5 text-xs font-semibold rounded-lg border flex items-center gap-1 transition-all hidden" style="background:var(--bg-surface);border-color:var(--border-color);color:var(--text-primary)">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                  Imagen
+              </button>
+          </div>
+      </div>
+
+      <!-- Subtle divisor line -->
+      <div class="w-full h-px" style="background:var(--border-color)"></div>
+
+      <!-- Fila 2: Inputs de Búsqueda de Entidad (Grid full width) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 w-full">
+          <div class="flex items-center gap-1.5 w-full">
+              <span class="text-[10px] font-bold text-[var(--text-muted)] uppercase shrink-0">Op:</span>
+              <input type="text" id="tf-operador" placeholder="Ej. Juan..." class="filter-input w-full">
+          </div>
+          <div class="flex items-center gap-1.5 w-full">
+              <span class="text-[10px] font-bold text-[var(--text-muted)] uppercase shrink-0">Pieza:</span>
+              <input type="text" id="tf-pieza" placeholder="Ej. TUB03..." class="filter-input w-full">
+          </div>
+          <div class="flex items-center gap-1.5 w-full">
+              <span class="text-[10px] font-bold text-[var(--text-muted)] uppercase shrink-0">🏭 Sec:</span>
+              <input type="text" id="tf-seccion" placeholder="Ej. TUBOS..." class="filter-input w-full">
+          </div>
+          <div class="flex items-center gap-1.5 w-full">
+              <span class="text-[10px] font-bold text-[var(--text-muted)] uppercase shrink-0">Fase:</span>
+              <input type="text" id="tf-proceso" placeholder="Ej. DOBLADO..." class="filter-input w-full">
+          </div>
+      </div>
+
+      <!-- Subtle separator for lower toggles row -->
+      <div class="w-full h-px" style="background:var(--border-color)"></div>
+
+      <!-- Fila 3: Calidad, Toggles de Control y Tolerancia -->
+      <div class="flex flex-wrap gap-4 items-center justify-between">
+          <div class="flex flex-wrap gap-3 items-center">
+              <!-- Calidad input -->
+              <div class="flex items-center gap-1.5">
+                  <span class="text-[10px] font-bold text-[var(--text-muted)] uppercase shrink-0">Calidad:</span>
+                  <input type="text" id="tf-calidad" placeholder="ej: defecto, baja..." class="filter-input py-1.5 text-xs" style="max-width:180px">
+              </div>
+
+              <!-- Solo Anomalías -->
+              <label class="qpill" id="pill-anomalias">
+                  <input type="checkbox" id="filter-anomalies" onchange="refreshFilters()">
+                  <span class="text-red-500 font-bold">⚠ Solo Anomalías</span>
+              </label>
+
+              <!-- Ocultar Pzs Buenas <= 0 -->
+              <div class="qpill on" id="pill-piezas">
+                  <input type="checkbox" id="q-piezas-on" checked onchange="updatePillStyle('piezas');refreshFilters()">
+                  <label for="q-piezas-on" style="cursor:pointer">Ocultar Pzs Buenas ≤</label>
+                  <input type="number" id="q-piezas-val" value="0" min="0" step="1" onchange="refreshFilters()">
+              </div>
+
+              <!-- Ocultar Horas <= 0 -->
+              <div class="qpill on" id="pill-horas">
+                  <input type="checkbox" id="q-horas-on" checked onchange="updatePillStyle('horas');refreshFilters()">
+                  <label for="q-horas-on" style="cursor:pointer">Ocultar Horas ≤</label>
+                  <input type="number" id="q-horas-val" value="0" min="0" step="0.1" onchange="refreshFilters()">
+              </div>
+          </div>
+      </div>
+
+      <!-- Leyenda de desviaciones -->
+      <div class="dev-legend text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] bg-[var(--bg-surface)] px-3 py-2 rounded-xl border border-[var(--border-color)]">
+        <span class="text-[var(--text-secondary)] font-extrabold mr-1">Leyenda Desv.:</span>
+        <span class="dev-legend-item"><span class="dev-dot" style="background:#16a34a"></span> OK (±5%)</span>
+        <span class="dev-legend-item"><span class="dev-dot" style="background:#d97706"></span> Baja (-20%)</span>
+        <span class="dev-legend-item"><span class="dev-dot" style="background:#dc2626"></span> Crítica (&lt;-20%)</span>
+        <span class="dev-legend-item"><span class="dev-dot" style="background:#3b82f6"></span> Alta (+20%)</span>
+        <span class="dev-legend-item"><span class="dev-dot" style="background:#b91c1c"></span> Exceso (&gt;+20%)</span>
+      </div>
+
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════
+       CONTENEDOR DE LA TABLA (AJUSTE ESPACIAL DE ALTURA)
+       ════════════════════════════════════════════════════════ -->
+  <div class="flex-1 min-h-0 relative mes-card p-2 border" style="border-color:var(--border-color)">
+    <!-- Loading overlay -->
+    <div id="loading-overlay" class="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-2xl hidden" style="background:var(--bg-overlay)">
+      <svg class="animate-spin h-9 w-9 mb-3" style="color:var(--accent-color)" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      <p class="text-sm font-bold" style="color:var(--text-secondary)">Recuperando Auditorías...</p>
+      <p id="loading-sub" class="text-xs mt-1" style="color:var(--text-muted)">Semana actual</p>
+    </div>
+    <!-- Table container -->
+    <div id="table-view-container" class="w-full h-full">
+      <div id="data-table" class="w-full h-full"></div>
+    </div>
+    <!-- Chart container -->
+    <div id="chart-view-container" class="w-full h-full hidden flex flex-col">
+      <div id="gantt-chart" class="w-full h-full min-h-[450px]"></div>
+    </div>
+  </div>
+
+  <!-- Modal de Edición Premium -->
+  <div id="edit-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden shadow-2xl" style="background-color: rgba(0, 0, 0, 0.65); backdrop-filter: blur(4px);">
+    <div class="mes-card w-full max-w-2xl p-6 border flex flex-col gap-4 relative" style="border-color: var(--border-color); background-color: var(--bg-overlay);">
+      <!-- Botón Cerrar en esquina -->
+      <button onclick="closeEditModal()" class="absolute top-4 right-4 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-all">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+
+      <div class="flex items-center gap-2 pb-2 border-b" style="border-color: var(--border-color);">
+        <div style="padding: 0.375rem; background-color: var(--accent-color); color: white; border-radius: 8px;">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+        </div>
+        <div>
+          <h3 class="text-base font-bold">Editar Registro de Ejecución</h3>
+          <p class="text-[10px]" style="color: var(--text-muted)">ID Registro: <span id="edit-id-display" class="font-mono"></span></p>
+        </div>
+      </div>
+
+      <form id="edit-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- ID oculto -->
+        <input type="hidden" id="edit-id">
+
+        <!-- Fila 1: Operador y Código Pieza -->
+        <div class="flex flex-col gap-1.5">
+          <label class="text-[10px] font-bold uppercase tracking-wider" style="color: var(--text-muted)">Operador</label>
+          <select id="edit-operador" class="w-full" required></select>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-[10px] font-bold uppercase tracking-wider" style="color: var(--text-muted)">Pieza</label>
+          <select id="edit-pieza" class="w-full" required></select>
+        </div>
+
+        <!-- Fila 2: Proceso (Fase) y Fecha/Hora Inicio -->
+        <div class="flex flex-col gap-1.5">
+          <label class="text-[10px] font-bold uppercase tracking-wider" style="color: var(--text-muted)">Proceso / Fase</label>
+          <select id="edit-proceso" class="w-full" required></select>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-[10px] font-bold uppercase tracking-wider" style="color: var(--text-muted)">Fecha y Hora de Inicio</label>
+          <input type="datetime-local" id="edit-hora-inicio" class="w-full" step="1" required>
+        </div>
+
+        <!-- Fila 3: Piezas Buenas y Duración Horas -->
+        <div class="flex flex-col gap-1.5">
+          <label class="text-[10px] font-bold uppercase tracking-wider" style="color: var(--text-muted)">Piezas Buenas (Confirmadas)</label>
+          <input type="number" id="edit-piezas-buenas" class="w-full" min="0" step="1" required>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="text-[10px] font-bold uppercase tracking-wider" style="color: var(--text-muted)">Duración (Horas)</label>
+          <input type="number" id="edit-duracion-horas" class="w-full" min="0.001" step="0.01" required>
+        </div>
+
+        <!-- Fila 4: Anomalía y Nota Calidad -->
+        <div class="flex flex-col gap-1.5 md:col-span-2">
+          <div class="flex items-center gap-3">
+            <label class="qpill" id="edit-pill-anomalias">
+              <input type="checkbox" id="edit-anomalies" onchange="updateEditAnomalyStyle()">
+              <span class="text-red-500 font-bold">⚠ Marcar como Anomalía</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1.5 md:col-span-2">
+          <label class="text-[10px] font-bold uppercase tracking-wider" style="color: var(--text-muted)">Nota de Calidad</label>
+          <textarea id="edit-nota-calidad" placeholder="Defecto, anomalías detectadas, comentarios de calidad..." rows="2" class="w-full" style="resize: none;"></textarea>
+        </div>
+
+        <!-- Botones de Acción -->
+        <div class="flex items-center justify-end gap-3 md:col-span-2 mt-2 pt-3 border-t" style="border-color: var(--border-color)">
+          <button type="button" onclick="closeEditModal()" class="px-4 py-2 text-xs font-semibold rounded-lg border transition-all" style="background: var(--bg-surface); border-color: var(--border-color); color: var(--text-primary)">
+            Cancelar
+          </button>
+          <button type="submit" class="toolbar-btn-apply px-4 py-2 text-xs font-semibold rounded-lg transition-all">
+            Guardar Cambios
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let table           = null;
+let rawData         = [];
+let myChart         = null;
+let currentView     = 'table';
+let lastFiltered    = []; // always holds the latest client-filtered dataset
+let _fetchController = null; // AbortController for in-flight requests
+let _dateDebounceTimer = null; // timer for date input debounce
+
+// Apply theme checks on Tabulator build
+document.addEventListener('DOMContentLoaded', () => {
+  initDatePresets();
+  wireEventFilters();
+  loadCatalogs();
+  applySearch();
+});
+
+/* ── Date range initialization ────────────────────────────────────── */
+function initDatePresets() {
+  const wr = MES.weekRange();
+  document.getElementById('filter-start').value = MES.fmtDate(wr.s);
+  document.getElementById('filter-end').value   = MES.fmtDate(wr.e);
+  // Note: listeners for date inputs are wired via inline oninput/onchange attributes
+  // to guarantee they fire both on typing and on picker selection.
+}
+
+/* ── Debounced handler for date inputs (fires on both typing and picker) ── */
+function onDateInput() {
+  // Mark presets as inactive immediately for visual feedback
+  document.querySelectorAll('.date-preset-btn').forEach(b => b.classList.remove('active'));
+  // Highlight the apply button to indicate pending change
+  const applyBtn = document.getElementById('btn-apply-dates');
+  if (applyBtn) {
+    applyBtn.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.35)';
+  }
+  // Debounce: wait 800ms after the user stops typing before fetching
+  clearTimeout(_dateDebounceTimer);
+  _dateDebounceTimer = setTimeout(() => {
+    const s = document.getElementById('filter-start').value;
+    const e = document.getElementById('filter-end').value;
+    // Only fetch if both fields contain a valid complete date
+    if (s && e && /^\d{4}-\d{2}-\d{2}$/.test(s) && /^\d{4}-\d{2}-\d{2}$/.test(e)) {
+      if (applyBtn) applyBtn.style.boxShadow = '';
+      applySearch();
+    }
+  }, 800);
+}
+
+/* ── Set range presets from buttons ────────────────────────────────────── */
+function setPreset(key) {
+  document.querySelectorAll('.date-preset-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('p-' + key);
+  if (btn) btn.classList.add('active');
+  
+  let r;
+  if (key === 'today') r = MES.todayRange();
+  else if (key === 'week')  r = MES.weekRange();
+  else if (key === 'month') r = MES.monthRange();
+  else return;
+  
+  document.getElementById('filter-start').value = MES.fmtDate(r.s);
+  document.getElementById('filter-end').value   = MES.fmtDate(r.e);
+  applySearch();
+}
+
+/* ── Wire reactive filtering to all inputs (Live search in memory) ────── */
+function wireEventFilters() {
+  // Live typing local filters (instant reactions)
+  ['tf-operador', 'tf-pieza', 'tf-seccion', 'tf-proceso', 'tf-calidad'].forEach(id => {
+    document.getElementById(id).addEventListener('input', refreshFilters);
+  });
+
+  // Inputs within pills
+  ['q-piezas-val', 'q-horas-val'].forEach(id => {
+    document.getElementById(id).addEventListener('input', refreshFilters);
+  });
+}
+
+/* ── Pill checkbox styling ─────────────────────────────────────────────── */
+function updatePillStyle(k) {
+  const chk  = document.getElementById('q-' + k + '-on');
+  const pill = document.getElementById('pill-' + k);
+  if (pill) {
+    pill.classList.toggle('on', chk.checked);
+  }
+}
+
+/* ── Multi-value header filter (comma-separated OR) ────────────────────── */
+function multiFilter(filterVal, rowVal) {
+  if (!filterVal) return true;
+  const tokens = String(filterVal).split(',').map(t => t.trim().toLowerCase()).filter(Boolean);
+  if (!tokens.length) return true;
+  const rv = String(rowVal || '').toLowerCase();
+  return tokens.some(t => rv.includes(t));
+}
+
+/* ── Quality note text search ───────────────────────────────────────────── */
+function noteFilter(filterVal, rowVal) {
+  if (!filterVal) return true;
+  return String(rowVal || '').toLowerCase().includes(String(filterVal).toLowerCase());
+}
+
+/* ── Numeric filter supports operators (>=, <=, >, <, =) ────────────────── */
+function numFilter(filterVal, rowVal) {
+  if (!filterVal) return true;
+  const s = String(filterVal).trim();
+  const n = parseFloat(rowVal);
+  if (isNaN(n)) return false;
+  if (s.startsWith('>=')) return n >= parseFloat(s.slice(2));
+  if (s.startsWith('<=')) return n <= parseFloat(s.slice(2));
+  if (s.startsWith('>'))  return n >  parseFloat(s.slice(1));
+  if (s.startsWith('<'))  return n <  parseFloat(s.slice(1));
+  if (s.startsWith('='))  return n === parseFloat(s.slice(1));
+  return String(rowVal).includes(s);
+}
+
+/* ── Apply local client-side filters (Reactively filters data) ────────── */
+function applyClientFilters(data) {
+  const pOn  = document.getElementById('q-piezas-on').checked;
+  const hOn  = document.getElementById('q-horas-on').checked;
+  const pVal = parseFloat(document.getElementById('q-piezas-val').value) || 0;
+  const hVal = parseFloat(document.getElementById('q-horas-val').value)  || 0;
+  
+  const tfOp  = document.getElementById('tf-operador').value.trim();
+  const tfPz  = document.getElementById('tf-pieza').value.trim();
+  const tfSec = document.getElementById('tf-seccion').value.trim();
+  const tfPr  = document.getElementById('tf-proceso').value.trim();
+  const tfQl  = document.getElementById('tf-calidad').value.trim();
+  const anomaliesOnly = document.getElementById('filter-anomalies').checked;
+
+  const filtered = data.filter(r => {
+    // Checkbox toggles (Ocultar <= 0)
+    if (pOn && parseFloat(r.piezas_buenas || 0) <= pVal) return false;
+    if (hOn && parseFloat(r.duracion_horas || 0) <= hVal) return false;
+    
+    // Server has already filtered solo_anomalias if triggered, but local toggle is useful too
+    if (anomaliesOnly && parseInt(r.es_anomalidad || 0) !== 1) return false;
+
+    // Multi-value comma searches
+    if (!multiFilter(tfOp, r.operador))          return false;
+    if (!multiFilter(tfPz, r.codigo_pieza))      return false;
+    if (!multiFilter(tfSec, r.seccion_planta))   return false;
+    if (!multiFilter(tfPr, r.proceso))           return false;
+    
+    // Quality text note search
+    if (!noteFilter(tfQl, r.nota_calidad))       return false;
+    
+    return true;
+  });
+
+  /* Update status badge */
+  const total  = data.length;
+  const shown  = filtered.length;
+  const hidden = total - shown;
+  const st = document.getElementById('table-status');
+  if (st) {
+    st.textContent = hidden > 0
+      ? `${shown} / ${total} reg. (${hidden} ocultos)`
+      : `${shown} registros`;
+  }
+  return filtered;
+}
+
+/* ── Extract time HH:MM from ISO timestamp or time string ─────────────── */
+function extractTime(val) {
+  if (!val) return '';
+  const parts = String(val).split('T');
+  if (parts.length > 1) {
+    return parts[1].substring(0, 5); // Ex: '16:08'
+  }
+  const spaceParts = String(val).split(' ');
+  if (spaceParts.length > 1) {
+    return spaceParts[1].substring(0, 5); // Ex: '16:08'
+  }
+  return String(val).substring(0, 5);
+}
+
+/* ── Deviation formatter with modern HSL scales ────────────────────────── */
+function deviationFormatter(cell) {
+  const val  = parseFloat(cell.getValue() || 0);
+  const text = (val >= 0 ? '+' : '') + val.toFixed(1) + '%';
+  const el   = cell.getElement();
+  
+  el.classList.remove('dev-ok','dev-warn-neg','dev-bad-neg','dev-warn-pos','dev-bad-pos');
+
+  let cls, icon = '';
+  if (val >= -5  && val <= 5)   { cls = 'dev-ok';       }
+  else if (val > 5  && val <= 20) { cls = 'dev-warn-pos'; }
+  else if (val > 20)              { cls = 'dev-bad-pos';  icon = '↑'; }
+  else if (val >= -20 && val < -5){ cls = 'dev-warn-neg'; icon = '↓'; }
+  else                            { cls = 'dev-bad-neg';  icon = '↓↓'; }
+  el.classList.add(cls);
+
+  return `<div style="display:flex;align-items:center;justify-content:center;gap:4px;font-variant-numeric:tabular-nums;font-weight:700">
+    ${icon ? `<span style="font-size:9px">${icon}</span>` : ''}
+    <span>${text}</span>
+  </div>`;
+}
+
+/* ── Quality note alert formatter ──────────────────────────────────────── */
+function qualityFormatter(cell) {
+  const text = cell.getValue() || '';
+  if (/error|anomal[ií]a|inv[aá]lido|defecto|rechaz/i.test(text)) {
+    cell.getElement().classList.add('quality-alert');
+  }
+  return `<span class="font-semibold text-xs" title="${text}">${text}</span>`;
+}
+
+/* ── Speed Formatter ───────────────────────────────────────────────────── */
+function speedFormatter(cell) {
+  const v = parseFloat(cell.getValue() || 0);
+  return `<span style="font-variant-numeric:tabular-nums;font-weight:600">${v.toFixed(1)}</span>`;
+}
+
+/* ── Init Tabulator with multi-timeout redraw safety sequence ──────────── */
+function initTabulator(data) {
+  if (table) table.destroy();
+  
+  table = new Tabulator('#data-table', {
+    data: data,
+    layout: 'fitColumns',
+    pagination: 'local',
+    paginationSize: 75,
+    paginationSizeSelector: [25, 50, 75, 200, true],
+    movableColumns: true,
+    height: '100%',
+    columns: [
+      {
+        title: 'Sección', field: 'seccion_planta', width: 110, frozen: true,
+        formatter: cell => {
+          const v = cell.getValue() || '—';
+          return `<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-lg uppercase tracking-wider" style="background:var(--accent-light);color:var(--accent-color)">${v}</span>`;
+        }
+      },
+      {
+        title: 'Fecha', field: 'fecha', width: 95, frozen: true,
+        formatter: cell => `<span style="font-variant-numeric:tabular-nums;font-weight:600">${cell.getValue() || ''}</span>`
+      },
+      {
+        title: 'Hora Inicio', field: 'hora_inicio', width: 85, hozAlign: 'center',
+        formatter: cell => `<span class="text-slate-800 dark:text-slate-200" style="font-variant-numeric:tabular-nums;font-weight:700">${extractTime(cell.getValue())}</span>`
+      },
+      {
+        title: 'Operador', field: 'operador', minWidth: 130,
+        formatter: cell => `<span class="font-bold text-xs" title="${cell.getValue() || ''}">${cell.getValue() || ''}</span>`
+      },
+      {
+        title: 'Cód. Pieza', field: 'codigo_pieza', width: 105,
+        formatter: cell => `<span class="font-mono text-xs font-semibold" style="letter-spacing:-0.02em">${cell.getValue() || ''}</span>`
+      },
+      {
+        title: 'Proceso', field: 'proceso', minWidth: 120,
+        formatter: cell => `<span class="font-semibold text-xs">${cell.getValue() || ''}</span>`
+      },
+      {
+        title: 'Pzs ✓', field: 'piezas_buenas', width: 72, hozAlign: 'center',
+        formatter: cell => {
+          const v = parseInt(cell.getValue() || 0);
+          if (v === 0) cell.getElement().style.opacity = '.4';
+          return `<span style="font-variant-numeric:tabular-nums;font-weight:700">${v}</span>`;
+        }
+      },
+      {
+        title: 'Horas', field: 'duracion_horas', width: 72, hozAlign: 'center',
+        formatter: cell => {
+          const v = parseFloat(cell.getValue() || 0);
+          if (v === 0) cell.getElement().style.opacity = '.4';
+          return `<span style="font-variant-numeric:tabular-nums;font-weight:700">${v.toFixed(2)}</span>`;
+        }
+      },
+      {
+        title: 'Pzs/H Real', field: 'ritmo_real', width: 92, hozAlign: 'right', formatter: speedFormatter
+      },
+      {
+        title: 'Pzs/H Std', field: 'ritmo_estandar', width: 90, hozAlign: 'right', formatter: speedFormatter
+      },
+      {
+        title: 'Desviación', field: 'porcentaje_desviacion', width: 105,
+        formatter: deviationFormatter, hozAlign: 'center'
+      },
+      {
+        title: 'Nota Calidad', field: 'nota_calidad', minWidth: 180,
+        formatter: qualityFormatter
+      }
+    ]
+  });
+
+  // Handle row click to open the edit modal
+  table.on("rowClick", function(e, row) {
+    const r = row.getData();
+    openEditModal(r);
+  });
+
+  // Multiple sequential redraw timeouts to perfectly fit inside parent flex sizes on any screen
+  setTimeout(() => { if (table) table.redraw(true); }, 50);
+  setTimeout(() => { if (table) table.redraw(true); }, 150);
+  setTimeout(() => { if (table) table.redraw(true); }, 350);
+
+  // Redraw when menu drawer is toggled
+  document.getElementById('drawer-toggle').addEventListener('click', () => {
+    setTimeout(() => { if (table) table.redraw(true); }, 320);
+  });
+}
+
+/* ── Refresh client filters ────────────────────────────────────────────── */
+function refreshFilters() {
+  if (!rawData.length) return;
+  const filtered = applyClientFilters(rawData);
+  lastFiltered = filtered;          // persist so toggleView picks it up
+  if (table) {
+    table.replaceData(filtered);
+  }
+  if (myChart) {
+    updateChart(filtered);          // only update chart if it is open
+  }
+}
+
+/* ── Full fetch + render with AbortController ─────────────────────────── */
+function applySearch() {
+  // Cancel any in-flight request to avoid stale data races
+  if (_fetchController) _fetchController.abort();
+  _fetchController = new AbortController();
+  const signal = _fetchController.signal;
+
+  const overlay = document.getElementById('loading-overlay');
+  overlay.style.display = 'flex';
+
+  const startVal = document.getElementById('filter-start').value;
+  const endVal   = document.getElementById('filter-end').value;
+  const sub      = document.getElementById('loading-sub');
+  if (sub) {
+    sub.textContent = startVal && endVal ? (startVal + ' ➔ ' + endVal) : 'Todo el historial';
+  }
+
+  const p = new URLSearchParams();
+  if (startVal && /^\d{4}-\d{2}-\d{2}$/.test(startVal)) p.append('fecha_inicio', startVal);
+  if (endVal   && /^\d{4}-\d{2}-\d{2}$/.test(endVal))   p.append('fecha_fin',    endVal);
+
+  console.log('[Registros] Fetching: /api/registros/auditoria?' + p);
+
+  fetch('/api/registros/auditoria?' + p, { signal })
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(data) {
+      overlay.style.display = 'none';
+      if (data.error) { console.error('[Registros] API Error:', data.error); return; }
+      console.log('[Registros] Received ' + data.length + ' records');
+      rawData = data;
+      const filtered = applyClientFilters(rawData);
+      lastFiltered = filtered;
+      initTabulator(filtered);
+      if (myChart) updateChart(filtered);
+    })
+    .catch(function(err) {
+      if (err.name === 'AbortError') return; // silently ignore cancelled requests
+      overlay.style.display = 'none';
+      console.error('[Registros] Network Error:', err);
+    });
+}
+
+/* ── CSV Export ────────────────────────────────────────────────────────── */
+function exportCSV() {
+  if (table) {
+    table.download('csv', 'MES_Registros_Ejecucion.csv');
+  }
+}
+
+/* ── Theme and Toggle View Logic ────────────────────────────────────────── */
+function isDarkMode() {
+  // Theme class is toggled on <html> (documentElement), not on <body>
+  return document.documentElement.classList.contains('dark');
+}
+
+function toggleView() {
+  const btn = document.getElementById('btn-toggle-view');
+  const tblContainer = document.getElementById('table-view-container');
+  const chartContainer = document.getElementById('chart-view-container');
+  const csvBtn = document.getElementById('download-csv');
+  const chartExportBtn = document.getElementById('download-chart');
+
+  if (currentView === 'table') {
+    currentView = 'chart';
+    btn.innerHTML = `
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+      Ver Tabla
+    `;
+    tblContainer.classList.add('hidden');
+    chartContainer.classList.remove('hidden');
+    csvBtn.classList.add('hidden');
+    chartExportBtn.classList.remove('hidden');
+    
+    // Initialize chart if first time
+    initChartInstance();
+    
+    // Render with the last filtered dataset (avoids re-running applyClientFilters
+    // which would ignore any text-filter state that refreshFilters already computed)
+    const toRender = lastFiltered.length > 0 ? lastFiltered : applyClientFilters(rawData);
+    updateChart(toRender);
+  } else {
+    currentView = 'table';
+    btn.innerHTML = `
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z"/></svg>
+      Ver Gráfico
+    `;
+    tblContainer.classList.remove('hidden');
+    chartContainer.classList.add('hidden');
+    csvBtn.classList.remove('hidden');
+    chartExportBtn.classList.add('hidden');
+
+    if (table) {
+      setTimeout(() => table.redraw(true), 50);
+    }
+  }
+}
+
+/* ── Export Gantt Chart to PNG Image ────────────────────────────────────── */
+function exportChartImage() {
+  if (myChart) {
+    const dark = isDarkMode();
+    // Fetch image data URL from ECharts
+    const url = myChart.getDataURL({
+      type: 'png',
+      pixelRatio: 2,
+      backgroundColor: dark ? '#1e1b4b' : '#ffffff' // Deep navy/indigo for dark mode, white for light mode
+    });
+    
+    const trigger = document.createElement('a');
+    trigger.href = url;
+    trigger.download = `MES_Gantt_Registros_${new Date().toISOString().slice(0, 10)}.png`;
+    document.body.appendChild(trigger);
+    trigger.click();
+    document.body.removeChild(trigger);
+  }
+}
+
+/* ── Initialize ECharts Instance ────────────────────────────────────────── */
+function initChartInstance() {
+  const chartDom = document.getElementById('gantt-chart');
+  if (!chartDom) return;
+  
+  if (!myChart) {
+    myChart = echarts.init(chartDom);
+    
+    window.addEventListener('resize', () => {
+      if (myChart) myChart.resize();
+    });
+
+    // Handle drawer toggle resize safety
+    document.getElementById('drawer-toggle').addEventListener('click', () => {
+      setTimeout(() => { if (myChart) myChart.resize(); }, 320);
+    });
+
+    // Handle theme toggle switcher reactive changes
+    const toggleBtn = document.getElementById('theme-toggle');
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', () => {
+        setTimeout(() => {
+          if (myChart) {
+            const filtered = applyClientFilters(rawData);
+            updateChart(filtered);
+          }
+        }, 120);
+      });
+    }
+  }
+}
+
+/* ── Get Solid Hex Colors matching Tabulator Legend ─────────────────────── */
+function getDeviationColor(val) {
+  if (val >= -5 && val <= 5) {
+    return '#16a34a'; // OK (±5%)
+  } else if (val > 5 && val <= 20) {
+    return '#3b82f6'; // Alta (+20%)
+  } else if (val > 20) {
+    return '#b91c1c'; // Exceso (>+20%)
+  } else if (val >= -20 && val < -5) {
+    return '#d97706'; // Baja (-20%)
+  } else {
+    return '#dc2626'; // Crítica (<-20%)
+  }
+}
+
+/* ── Helper to convert Timestamp securely ────────────────────────────────── */
+function safeTS(val) {
+  if (!val) return Date.now();
+  if (typeof val === 'number') return val;
+  return new Date(val).getTime();
+}
+
+/* ── Render ECharts Gantt chart from filtered data ──────────────────────── */
+function updateChart(data) {
+  if (!myChart) return; // Only process if ECharts has been initialized (i.e. Chart view is open)
+
+  const dark = isDarkMode();
+  const TEXT_COL = dark ? '#ffffff' : '#1e293b';
+  const GRID_LINE_COL = dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+
+  // 1. Extract and sort unique operators for Y-axis
+  const operators = [];
+  data.forEach(r => {
+    const op = r.operador || 'Desconocido';
+    if (!operators.includes(op)) operators.push(op);
+  });
+  operators.sort();
+
+  if (operators.length === 0) {
+    myChart.setOption({
+      title: {
+        text: 'NO HAY REGISTROS QUE MOSTRAR CON LOS FILTROS SELECCIONADOS',
+        left: 'center',
+        top: 'center',
+        textStyle: { color: TEXT_COL, fontSize: 13, fontWeight: 'bold' }
+      },
+      yAxis: { data: [] },
+      series: [{ data: [] }]
+    }, true);
+    return;
+  }
+
+  // 2. Map filtered rows to ECharts data items
+  const chartData = data.map(r => {
+    const op = r.operador || 'Desconocido';
+    const catIndex = operators.indexOf(op);
+    if (catIndex === -1) return null;
+
+    const startTS = safeTS(r.hora_inicio);
+    const endTS = startTS + parseFloat(r.duracion_horas || 0) * 3600 * 1000;
+    const color = getDeviationColor(parseFloat(r.porcentaje_desviacion || 0));
+
+    const codigo = r.codigo_pieza || 'S/P';
+    const proceso = r.proceso || 'S/F';
+    const piezas = parseInt(r.piezas_buenas || 0);
+
+    return {
+      name: codigo,
+      // value array: [catIdx, startTS, endTS, codigo, proceso, piezas, deviation, color, rawItem]
+      value: [catIndex, startTS, endTS, codigo, proceso, piezas, r.porcentaje_desviacion, color, r],
+      itemStyle: { color: color, borderRadius: 4, opacity: 0.95 }
+    };
+  }).filter(Boolean);
+
+  // 3. Adjust chart DOM height dynamically based on the number of operators (prevents row squishing)
+  const baseH = Math.max(operators.length * 48 + 120, 450);
+  const ganttDom = document.getElementById('gantt-chart');
+  if (ganttDom) {
+    ganttDom.style.height = baseH + 'px';
+  }
+  myChart.resize();
+
+  // 4. Build ECharts Options
+  const option = {
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'item',
+      confine: true,
+      formatter: function (params) {
+        if (!params.value || params.value.length < 9) return '';
+        const r = params.value[8];
+        const devVal = parseFloat(r.porcentaje_desviacion || 0);
+        const devText = (devVal >= 0 ? '+' : '') + devVal.toFixed(1) + '%';
+        const startStr = r.hora_inicio ? new Date(r.hora_inicio).toLocaleString('es-ES') : 'N/A';
+        const endStr = r.hora_inicio ? new Date(safeTS(r.hora_inicio) + parseFloat(r.duracion_horas || 0) * 3600 * 1000).toLocaleString('es-ES') : 'N/A';
+
+        return `
+          <div style="font-size:12px;line-height:1.6;min-width:220px;font-family:var(--font-primary);">
+            <div style="font-size:13px;font-weight:800;border-bottom:1px solid rgba(255,255,255,0.15);padding-bottom:4px;margin-bottom:6px;display:flex;justify-content:between;align-items:center;">
+              <span>${r.codigo_pieza || 'S/C'}</span>
+              <span style="font-size:10px;padding:2px 6px;border-radius:6px;background:${params.value[7]}22;color:${params.value[7]}">${r.seccion_planta || '—'}</span>
+            </div>
+            <b>Operador:</b> ${r.operador || '—'}<br>
+            <b>Proceso:</b> ${r.proceso || '—'}<br>
+            <b>Piezas Buenas:</b> <span style="font-weight:700">${r.piezas_buenas || 0}</span><br>
+            <b>Duración:</b> ${parseFloat(r.duracion_horas || 0).toFixed(2)} horas<br>
+            <b>Ritmo Real:</b> ${parseFloat(r.ritmo_real || 0).toFixed(1)} pzs/h<br>
+            <b>Desviación:</b> <span style="font-weight:800;color:${params.value[7]}">${devText}</span><br>
+            ${r.nota_calidad ? `<hr style="margin:4px 0;opacity:.1"><b>Nota Calidad:</b> <span style="color:#ef4444">${r.nota_calidad}</span><br>` : ''}
+            <hr style="margin:4px 0;opacity:.1">
+            <span style="font-size:10px;color:var(--text-muted)">
+              <b>Inicio:</b> ${startStr}<br>
+              <b>Fin:</b> ${endStr}
+            </span>
+          </div>
+        `;
+      }
+    },
+    title: {
+      text: 'ANÁLISIS TEMPORAL Y DESVIACIONES (GANTT DE REGISTROS)',
+      left: 'center',
+      top: 5,
+      textStyle: { fontSize: 12, fontWeight: 'bold', color: TEXT_COL }
+    },
+    legend: {
+      show: true,
+      top: 28,
+      textStyle: { color: TEXT_COL, fontSize: 10, fontWeight: 'bold' },
+      data: ['OK (±5%)', 'Baja (-20%)', 'Crítica (<-20%)', 'Alta (+20%)', 'Exceso (>+20%)']
+    },
+    grid: { top: 85, bottom: 25, left: 10, right: 25, containLabel: true },
+    xAxis: {
+      type: 'time',
+      position: 'top',
+      splitLine: { show: true, lineStyle: { color: GRID_LINE_COL, type: 'dashed' } },
+      axisLabel: { color: TEXT_COL, fontSize: 10 }
+    },
+    yAxis: {
+      type: 'category',
+      data: operators,
+      inverse: true,
+      axisTick: { show: false },
+      axisLine: { show: false },
+      splitLine: { show: true, lineStyle: { color: GRID_LINE_COL } },
+      axisLabel: { color: TEXT_COL, fontWeight: 'bold', fontSize: 11, overflow: 'truncate', width: 140 }
+    },
+    dataZoom: [
+      {
+        type: 'slider',
+        show: true,
+        top: 52,
+        height: 18,
+        xAxisIndex: [0],
+        filterMode: 'weakFilter',
+        borderColor: 'transparent',
+        fillerColor: 'rgba(59, 130, 246, 0.1)',
+        handleStyle: { color: 'var(--accent-color)', borderColor: 'var(--accent-color)' }
+      },
+      { type: 'inside', xAxisIndex: [0], filterMode: 'weakFilter' }
+    ],
+    series: [
+      // 5 Invisible scatter series for legend mapping
+      { name: 'OK (±5%)', type: 'scatter', data: [], itemStyle: { color: '#16a34a' } },
+      { name: 'Baja (-20%)', type: 'scatter', data: [], itemStyle: { color: '#d97706' } },
+      { name: 'Crítica (<-20%)', type: 'scatter', data: [], itemStyle: { color: '#dc2626' } },
+      { name: 'Alta (+20%)', type: 'scatter', data: [], itemStyle: { color: '#3b82f6' } },
+      { name: 'Exceso (>+20%)', type: 'scatter', data: [], itemStyle: { color: '#b91c1c' } },
+      
+      // Main Custom Gantt series
+      {
+        type: 'custom',
+        renderItem: function (params, api) {
+          const catIndex = api.value(0);
+          const startPx = api.coord([api.value(1), catIndex]);
+          const endPx = api.coord([api.value(2), catIndex]);
+          const rowHeight = api.size([0, 1])[1];
+          const barH = rowHeight * 0.72;
+          const barW = Math.max(endPx[0] - startPx[0], 2);
+
+          const rectShape = echarts.graphic.clipRectByRect(
+            { x: startPx[0], y: startPx[1] - barH / 2, width: barW, height: barH },
+            { x: params.coordSys.x, y: params.coordSys.y, width: params.coordSys.width, height: params.coordSys.height }
+          );
+          if (!rectShape) return;
+
+          const codigo = api.value(3);
+          const proceso = api.value(4);
+          const piezas = api.value(5);
+          const color = api.value(7);
+
+          const labelText = `${codigo} - ${proceso} - ${piezas}u`;
+          
+          // Contrast dark slate text color for high legibility
+          const TEXT_DARK_COL = '#1e293b'; 
+          
+          const children = [
+            { type: 'rect', shape: rectShape, style: api.style() }
+          ];
+
+          const MIN_W = 65; // minimum width in pixels to render text on bar
+          if (barW >= MIN_W) {
+            children.push({
+              type: 'text',
+              style: {
+                x: rectShape.x + rectShape.width / 2,
+                y: rectShape.y + rectShape.height / 2,
+                text: labelText,
+                fill: TEXT_DARK_COL,
+                textAlign: 'center',
+                textVerticalAlign: 'middle',
+                fontSize: 11,
+                fontWeight: 700,
+                fontFamily: 'inherit',
+                truncate: { outerWidth: rectShape.width - 8, ellipsis: '…' }
+              }
+            });
+          }
+
+          return { type: 'group', children };
+        },
+        encode: { x: [1, 2], y: 0 },
+        data: chartData
+      }
+    ]
+  };
+
+  // false = merge mode: keeps dataZoom position and doesn't flash/reset the chart
+  myChart.setOption(option, false);
+}
+
+/* ─── LÓGICA DE EDICIÓN Y CATÁLOGOS (PREMIUM MODAL) ─── */
+let catalogOperators = [];
+let catalogComponents = [];
+let catalogProcesses = [];
+
+function loadCatalogs() {
+  // Load operators
+  fetch('/api/explorar/dim_operador')
+    .then(r => r.json())
+    .then(data => {
+      if (Array.isArray(data)) {
+        catalogOperators = data.sort((a, b) => (a.operador_alias || '').localeCompare(b.operador_alias || ''));
+        const sel = document.getElementById('edit-operador');
+        sel.innerHTML = '<option value="">-- Seleccionar Operador --</option>';
+        catalogOperators.forEach(op => {
+          sel.innerHTML += `<option value="${op.operador_id_bd}">${op.operador_alias || op.operador_nombre}</option>`;
+        });
+      }
+    })
+    .catch(err => console.error("Error al cargar operarios:", err));
+
+  // Load components (piezas)
+  fetch('/api/explorar/dim_componente')
+    .then(r => r.json())
+    .then(data => {
+      if (Array.isArray(data)) {
+        catalogComponents = data.sort((a, b) => (a.componente_codigo_interno || '').localeCompare(b.componente_codigo_interno || ''));
+        const sel = document.getElementById('edit-pieza');
+        sel.innerHTML = '<option value="">-- Seleccionar Pieza --</option>';
+        catalogComponents.forEach(comp => {
+          sel.innerHTML += `<option value="${comp.componente_id_bd}">${comp.componente_codigo_interno} - ${comp.componente_nombre}</option>`;
+        });
+      }
+    })
+    .catch(err => console.error("Error al cargar componentes:", err));
+
+  // Load processes (operaciones)
+  fetch('/api/explorar/dim_operacion')
+    .then(r => r.json())
+    .then(data => {
+      if (Array.isArray(data)) {
+        catalogProcesses = data.sort((a, b) => (a.operacion_nombre || '').localeCompare(b.operacion_nombre || ''));
+        const sel = document.getElementById('edit-proceso');
+        sel.innerHTML = '<option value="">-- Seleccionar Proceso --</option>';
+        catalogProcesses.forEach(proc => {
+          sel.innerHTML += `<option value="${proc.operacion_id_bd}">${proc.operacion_nombre}</option>`;
+        });
+      }
+    })
+    .catch(err => console.error("Error al cargar procesos:", err));
+}
+
+function formatForDateTimeLocal(val) {
+  if (!val) return '';
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return '';
+  
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  const sec = String(d.getSeconds()).padStart(2, '0');
+  
+  return `${y}-${m}-${day}T${h}:${min}:${sec}`;
+}
+
+function openEditModal(r) {
+  document.getElementById('edit-id').value = r.id;
+  document.getElementById('edit-id-display').textContent = r.id;
+  
+  // Set dropdown selections
+  document.getElementById('edit-operador').value = r.operador_id_bd || '';
+  document.getElementById('edit-pieza').value = r.componente_id_bd || '';
+  document.getElementById('edit-proceso').value = r.operacion_id_bd || '';
+  
+  // Set date-time
+  document.getElementById('edit-hora-inicio').value = formatForDateTimeLocal(r.hora_inicio);
+  
+  // Set quantities
+  document.getElementById('edit-piezas-buenas').value = r.piezas_buenas || 0;
+  document.getElementById('edit-duracion-horas').value = r.duracion_horas || 0.0;
+  
+  // Set quality anomaly and note
+  const anomal_chk = document.getElementById('edit-anomalies');
+  anomal_chk.checked = parseInt(r.es_anomalidad || 0) === 1;
+  updateEditAnomalyStyle();
+  
+  document.getElementById('edit-nota-calidad').value = r.nota_calidad || '';
+  
+  // Show modal
+  const modal = document.getElementById('edit-modal');
+  modal.classList.remove('hidden');
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').classList.add('hidden');
+}
+
+function updateEditAnomalyStyle() {
+  const chk = document.getElementById('edit-anomalies');
+  const pill = document.getElementById('edit-pill-anomalias');
+  if (pill) {
+    pill.classList.toggle('on', chk.checked);
+  }
+}
+
+// Custom Premium Toast Notification
+function showToast(message, type = 'success') {
+  let toast = document.getElementById('mes-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'mes-toast';
+    toast.className = 'fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl border shadow-xl flex items-center gap-2 transition-all transform translate-y-10 opacity-0';
+    document.body.appendChild(toast);
+  }
+  
+  if (type === 'success') {
+    toast.style.background = 'var(--success-light)';
+    toast.style.borderColor = 'var(--success)';
+    toast.style.color = 'var(--success)';
+    toast.innerHTML = `
+      <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <span class="text-xs font-bold">${message}</span>
+    `;
+  } else {
+    toast.style.background = 'var(--danger-light)';
+    toast.style.borderColor = 'var(--danger)';
+    toast.style.color = 'var(--danger)';
+    toast.innerHTML = `
+      <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <span class="text-xs font-bold">${message}</span>
+    `;
+  }
+  
+  toast.classList.remove('translate-y-10', 'opacity-0');
+  toast.classList.add('translate-y-0', 'opacity-100');
+  
+  setTimeout(() => {
+    toast.classList.remove('translate-y-0', 'opacity-100');
+    toast.classList.add('translate-y-10', 'opacity-0');
+  }, 3000);
+}
+
+// Form Submission Handler
+document.getElementById('edit-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  const record_id = document.getElementById('edit-id').value;
+  const payload = {
+    operador_id_bd: parseInt(document.getElementById('edit-operador').value),
+    componente_id_bd: parseInt(document.getElementById('edit-pieza').value),
+    operacion_id_bd: parseInt(document.getElementById('edit-proceso').value),
+    hora_inicio: document.getElementById('edit-hora-inicio').value,
+    piezas_buenas: parseFloat(document.getElementById('edit-piezas-buenas').value),
+    duracion_horas: parseFloat(document.getElementById('edit-duracion-horas').value),
+    es_anomalidad: document.getElementById('edit-anomalies').checked ? 1 : 0,
+    nota_calidad: document.getElementById('edit-nota-calidad').value.trim()
+  };
+
+  fetch(`/api/registros/update/${record_id}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      showToast('Registro actualizado exitosamente', 'success');
+      closeEditModal();
+      applySearch();
+    } else {
+      showToast('Error: ' + (data.error || 'No se pudo guardar'), 'danger');
+    }
+  })
+  .catch(err => {
+    console.error('Error updating record:', err);
+    showToast('Error de red al actualizar', 'danger');
+  });
+});
+</script>
+{% endblock %}

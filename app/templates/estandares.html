@@ -1,0 +1,374 @@
+{% extends 'base.html' %}
+{% block title %}Estándares KPI - MES Industrial{% endblock %}
+
+{% block head %}
+<!-- Tabulator CSS -->
+<link href="https://unpkg.com/tabulator-tables@6.2.1/dist/css/tabulator.min.css" rel="stylesheet">
+<!-- Tabulator JS loaded in head to prevent script race conditions -->
+<script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.2.1/dist/js/tabulator.min.js"></script>
+
+<style>
+/* ─── Tabulator Light/Dark Spatial UI Theme ──────────────────────────────── */
+.tabulator { 
+  background: var(--bg-surface) !important; 
+  border: 1px solid var(--border-color) !important; 
+  font-family: var(--font-primary) !important;
+  font-size: 13px !important; 
+}
+.tabulator-header { 
+  background: var(--bg-surface) !important; 
+  color: var(--text-primary) !important; 
+  font-weight: 700 !important; 
+  border-bottom: 2px solid var(--border-color) !important; 
+}
+.tabulator-header .tabulator-col { 
+  background: var(--bg-surface) !important; 
+  border-right: 1px solid var(--border-color) !important; 
+}
+.tabulator-row { 
+  background: var(--bg-page) !important; 
+  border-bottom: 1px solid var(--border-color) !important; 
+  color: var(--text-primary) !important; 
+  font-weight: 500 !important;
+}
+.tabulator-row.tabulator-row-even { 
+  background: var(--bg-surface) !important; 
+}
+.tabulator-row:hover { 
+  background: var(--bg-surface-hover) !important; 
+}
+.tabulator-footer { 
+  background: var(--bg-surface) !important; 
+  border-top: 1px solid var(--border-color) !important; 
+  color: var(--text-secondary) !important; 
+}
+.tabulator-header input { 
+  border: 1px solid var(--border-color) !important; 
+  padding: 4px 8px !important; 
+  border-radius: 8px !important; 
+  width: 100% !important; 
+  box-sizing: border-box !important; 
+  background: var(--bg-page) !important; 
+  color: var(--text-primary) !important; 
+  margin-top: 5px !important; 
+  font-size: 11px !important; 
+}
+.tabulator-col-content { 
+  padding: 8px !important; 
+  display: flex; 
+  flex-direction: column; 
+  justify-content: space-between; 
+}
+.tabulator-page { 
+  color: var(--text-secondary) !important; 
+  background: var(--bg-surface) !important; 
+  border: 1px solid var(--border-color) !important; 
+}
+.tabulator-page.active { 
+  color: #fff !important; 
+  background: var(--accent-color) !important; 
+}
+
+/* Progress bar inside cells styling */
+.tabulator-cell .tabulator-progress-bar {
+  border-radius: 8px !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+.tabulator-cell .tabulator-progress-legend {
+  font-weight: 800 !important;
+  font-size: 11px !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* ─── Custom reliability badge states ────────────────────────────────────── */
+.rel-ok {
+  background: rgba(34, 197, 94, 0.12) !important;
+  color: #166534 !important;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+.dark .rel-ok {
+  background: rgba(34, 197, 94, 0.18) !important;
+  color: #86efac !important;
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.rel-warning {
+  background: rgba(234, 179, 8, 0.12) !important;
+  color: #854d0e !important;
+  border: 1px solid rgba(234, 179, 8, 0.2);
+}
+.dark .rel-warning {
+  background: rgba(234, 179, 8, 0.18) !important;
+  color: #fde047 !important;
+  border-color: rgba(234, 179, 8, 0.3);
+}
+
+.rel-danger {
+  background: rgba(239, 68, 68, 0.12) !important;
+  color: #991b1b !important;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+.dark .rel-danger {
+  background: rgba(239, 68, 68, 0.18) !important;
+  color: #fca5a5 !important;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex flex-col w-full h-[calc(100vh-120px)] gap-6">
+
+  <!-- ════════════════════════════════════════════════════════
+       TITULO Y METRICAS COMPACTAS
+       ════════════════════════════════════════════════════════ -->
+  <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center shrink-0 gap-2">
+    <div>
+      <h2 class="text-xl font-extrabold tracking-tight">Estándares Operativos</h2>
+      <p class="text-xs text-[var(--text-muted)]">Catálogo de tiempos de ciclo y auditoría estadística IQR por proceso.</p>
+    </div>
+    <div class="flex gap-2">
+      <button id="download-csv" class="px-4 py-2 text-xs font-bold rounded-xl flex items-center gap-1.5 opacity-40 cursor-not-allowed border" style="background:var(--bg-surface);border-color:var(--border-color);color:var(--text-primary)" disabled>
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg> 
+        Exportar Estándares
+      </button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════
+       TARJETAS KPI (UX PREMIUM SPATIAL RESILIENT)
+       ════════════════════════════════════════════════════════ -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
+    <!-- KPI 1 -->
+    <div class="mes-card rounded-2xl p-4 flex flex-col justify-center items-center text-center">
+      <span class="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1">Procesos Únicos</span>
+      <div id="kpi-procesos" class="text-3xl font-extrabold text-brand-600" style="color:var(--accent-color)">-</div>
+    </div>
+    <!-- KPI 2 -->
+    <div class="mes-card rounded-2xl p-4 flex flex-col justify-center items-center text-center">
+      <span class="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1">Ritmo Promedio Global</span>
+      <div class="flex items-baseline gap-1">
+        <div id="kpi-promedio" class="text-3xl font-extrabold">-</div>
+        <span class="text-xs font-semibold text-[var(--text-muted)]">pzs/h</span>
+      </div>
+    </div>
+    <!-- KPI 3 -->
+    <div class="mes-card rounded-2xl p-4 flex flex-col justify-center items-center text-center">
+      <span class="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider mb-1">Anomalías Detectadas</span>
+      <div id="kpi-invalidas" class="text-3xl font-extrabold text-red-500">-</div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════
+       CONTENEDOR DE LA TABLA (DENSO Y FLUIDO)
+       ════════════════════════════════════════════════════════ -->
+  <div class="flex-1 min-h-0 relative mes-card p-2 border" style="border-color:var(--border-color)">
+    <!-- Loading overlay -->
+    <div id="loading-overlay" class="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-2xl" style="background:var(--bg-overlay)">
+      <svg class="animate-spin h-9 w-9 mb-3" style="color:var(--accent-color)" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      <p class="text-sm font-bold" style="color:var(--text-secondary)">Calculando métricas estadísticas...</p>
+    </div>
+    <!-- Tabulator Table -->
+    <div id="data-table" class="w-full h-full"></div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let table = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadKPIs();
+  loadTableData();
+  
+  document.getElementById('download-csv').addEventListener('click', () => {
+    if (table) {
+      table.download("csv", "MES_Estandares_Calidad.csv");
+    }
+  });
+});
+
+/* ── Fetch aggregated standard KPIs ────────────────────────────────────── */
+function loadKPIs() {
+  fetch('/api/estandares/kpis')
+    .then(r => r.json())
+    .then(data => {
+      if (data && !data.error) {
+        document.getElementById('kpi-procesos').innerText = data.total_procesos_unicos || 0;
+        document.getElementById('kpi-promedio').innerText = data.promedio_global_ciclo ? parseFloat(data.promedio_global_ciclo).toFixed(1) : 0;
+        document.getElementById('kpi-invalidas').innerText = data.total_muestras_invalidas || 0;
+      }
+    })
+    .catch(e => console.error("Error cargando KPIs estándar:", e));
+}
+
+/* ── Fetch all standards catalog rows ──────────────────────────────────── */
+function loadTableData() {
+  fetch('/api/estandares/datos')
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('loading-overlay').classList.add('hidden');
+      if (data.error) {
+        console.error("Error al cargar estándares:", data.error);
+        return;
+      }
+      
+      const csvBtn = document.getElementById('download-csv');
+      csvBtn.disabled = false;
+      csvBtn.classList.remove('opacity-40', 'cursor-not-allowed');
+      
+      initTabulator(data);
+    })
+    .catch(err => {
+      document.getElementById('loading-overlay').classList.add('hidden');
+      console.error("Error de red en estándares:", err);
+    });
+}
+
+/* ── Custom text filter for case-insensitive local search ──────────────── */
+function customHeaderFilter(headerValue, rowValue) {
+  if (headerValue === null || headerValue === "") return true;
+  return String(rowValue).toLowerCase().includes(String(headerValue).toLowerCase());
+}
+
+/* ── Custom reliability formatter with premium styled badges ──────────── */
+function reliabilityFormatter(cell) {
+  const row = cell.getRow().getData();
+  const validos = parseInt(row.cuantos_validos || 0);
+  const invalidos = parseInt(row.cuantos_invalidos || 0);
+  
+  let cls = "", text = "", icon = "";
+  if (validos < 30) {
+    cls = "rel-warning";
+    text = "Muestra Baja (<30)";
+    icon = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>`;
+  } else if (invalidos > validos) {
+    cls = "rel-danger";
+    text = "Alta Inestabilidad";
+    icon = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+  } else {
+    cls = "rel-ok";
+    text = "Confiable";
+    icon = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>`;
+  }
+
+  return `<div class="flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold ${cls}">
+    ${icon}
+    <span>${text}</span>
+  </div>`;
+}
+
+/* ── Init Tabulator catalog ────────────────────────────────────────────── */
+function initTabulator(data) {
+  if (table) table.destroy();
+  
+  // Dynamic scale max for progress rendering
+  let maxPromedio = 100;
+  if (data.length > 0) {
+    const maxFound = Math.max(...data.map(d => parseFloat(d.promedio_ciclo_piezas_hora || 0)));
+    if (maxFound > 0 && isFinite(maxFound)) {
+      maxPromedio = maxFound;
+    }
+  }
+
+  table = new Tabulator("#data-table", {
+    data: data,
+    layout: "fitColumns",
+    pagination: "local",
+    paginationSize: 50,
+    paginationSizeSelector: [25, 50, 100, true],
+    movableColumns: true,
+    height: "100%",
+    columns: [
+      {
+        title: "Cód. Pieza",
+        field: "codigo_interno_pieza",
+        width: 120,
+        headerFilter: "input",
+        headerFilterFunc: customHeaderFilter,
+        formatter: cell => `<span class="font-mono text-xs font-bold">${cell.getValue() || ''}</span>`
+      },
+      {
+        title: "Descripción Pieza",
+        field: "descripcion_pieza",
+        minWidth: 200,
+        headerFilter: "input",
+        headerFilterFunc: customHeaderFilter,
+        formatter: cell => `<span class="font-semibold text-xs">${cell.getValue() || ''}</span>`
+      },
+      {
+        title: "Proceso",
+        field: "proceso",
+        minWidth: 150,
+        headerFilter: "input",
+        headerFilterFunc: customHeaderFilter,
+        formatter: cell => `<span class="font-bold text-xs">${cell.getValue() || ''}</span>`
+      },
+      {
+        title: "Promedio (Pzs/H)",
+        field: "promedio_ciclo_piezas_hora",
+        formatter: "progress",
+        width: 200,
+        formatterParams: {
+          min: 0,
+          max: maxPromedio,
+          color: "var(--accent-color)",
+          legend: function(value) {
+            return parseFloat(value).toFixed(1) + " pzs/h";
+          },
+          legendColor: "var(--text-primary)",
+          legendAlign: "center"
+        },
+        headerFilter: "input",
+        sorter: "number"
+      },
+      {
+        title: "Muestras Válidas",
+        field: "cuantos_validos",
+        hozAlign: "center",
+        headerFilter: "input",
+        sorter: "number",
+        width: 130,
+        formatter: cell => `<span style="font-variant-numeric:tabular-nums;font-weight:700">${cell.getValue() || 0}</span>`
+      },
+      {
+        title: "Anomalías (IQR)",
+        field: "cuantos_invalidos",
+        hozAlign: "center",
+        headerFilter: "input",
+        sorter: "number",
+        width: 130,
+        formatter: cell => {
+          const v = parseInt(cell.getValue() || 0);
+          const color = v > 0 ? "color:var(--danger)" : "opacity:.5";
+          return `<span style="font-variant-numeric:tabular-nums;font-weight:700;${color}">${v}</span>`;
+        }
+      },
+      {
+        title: "Confiabilidad Estadística",
+        field: "confiabilidad_calc",
+        formatter: reliabilityFormatter,
+        hozAlign: "center",
+        headerSort: false,
+        minWidth: 180
+      }
+    ]
+  });
+
+  // Bulletproof redraw sequences to render properly inside flex containers
+  setTimeout(() => { if (table) table.redraw(true); }, 50);
+  setTimeout(() => { if (table) table.redraw(true); }, 150);
+  setTimeout(() => { if (table) table.redraw(true); }, 350);
+
+  // Redraw when menu drawer is toggled
+  document.getElementById('drawer-toggle').addEventListener('click', () => {
+    setTimeout(() => { if (table) table.redraw(true); }, 320);
+  });
+}
+</script>
+{% endblock %}

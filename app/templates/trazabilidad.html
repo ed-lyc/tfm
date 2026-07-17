@@ -1,0 +1,953 @@
+{% extends 'base.html' %}
+{% block title %}Trazabilidad - MES Industrial{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
+<style>
+    main { padding: 0 !important; max-width: 100% !important; }
+    .choices { margin-bottom: 0 !important; }
+
+    .dark .choices__input { color: var(--text-primary) !important; background: transparent !important; }
+    .dark .choices__list--dropdown {
+        background-color: var(--bg-surface) !important;
+        border-color: var(--border-color) !important;
+        color: var(--text-primary) !important; z-index: 50 !important;
+    }
+    .dark .choices__item--choice.is-highlighted { background-color: var(--bg-elevated) !important; }
+    .choices__list--multiple .choices__item {
+        background-color: var(--accent-color) !important; border: none !important;
+        border-radius: 4px !important; padding: 2px 6px !important;
+        margin: 2px !important; font-size: 11px !important;
+    }
+    /* ─── Legend pills ───────────────────────────────────────── */
+    .leg-pill {
+        display: inline-flex; align-items: center; gap: 5px;
+        font-size: 10px; font-weight: 600; color: var(--text-secondary);
+    }
+    .leg-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="flex flex-col min-h-[calc(100vh-64px)] w-full">
+
+    <!-- ══════════════════════════════════════════════════════
+         TOOLBAR
+    ══════════════════════════════════════════════════════ -->
+    <div class="flex flex-col gap-2.5 px-3 py-2 mes-card z-20 shrink-0 border-b"
+         style="border-color:var(--border-color)">
+
+        <!-- Row 1: Title, Presets, Date inputs, Export & Legend -->
+        <div class="flex gap-3 flex-wrap items-center w-full">
+            <!-- Title -->
+            <div class="hidden md:flex flex-col pr-2 border-r" style="border-color:var(--border-color)">
+                <h2 class="text-sm font-bold leading-tight">Trazabilidad</h2>
+                <span class="text-[10px]" style="color:var(--text-muted)">Gantt + Calidad por Fase</span>
+            </div>
+
+            <!-- Centered Date Controls -->
+            <div class="flex items-center gap-3 md:mx-auto flex-wrap">
+                <!-- Date presets -->
+                <div class="date-preset-group">
+                    <button onclick="loadRange('today')" class="date-preset-btn" id="btn-today">Hoy</button>
+                    <button onclick="loadRange('week')"  class="date-preset-btn" id="btn-week">Semana</button>
+                    <button onclick="loadRange('month')" class="date-preset-btn" id="btn-month">Mes</button>
+                    <button onclick="loadRange('all')"   class="date-preset-btn" id="btn-all">Todo</button>
+                </div>
+
+                <!-- Date inputs -->
+                <div class="flex items-center gap-1.5">
+                    <label class="text-[10px] font-bold" style="color:var(--text-muted)">Desde</label>
+                    <input type="date" id="date-start"
+                        class="text-[10px] px-2 py-1 rounded-md outline-none transition-all">
+                    <label class="text-[10px] font-bold" style="color:var(--text-muted)">Hasta</label>
+                    <input type="date" id="date-end"
+                        class="text-[10px] px-2 py-1 rounded-md outline-none transition-all">
+                    <button onclick="applyDateInputs()" class="toolbar-btn-apply">Buscar</button>
+                </div>
+            </div>
+
+            <!-- Export -->
+            <button onclick="downloadChartImage()"
+                class="px-3 py-1.5 text-xs font-medium rounded-lg flex items-center gap-1 transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                PNG
+            </button>
+
+            <!-- Legend pills (pushed to the right) -->
+            <div class="hidden lg:flex gap-3 items-center ml-auto pl-2 border-l shrink-0" style="border-color:var(--border-color)">
+                <div class="flex items-center gap-2">
+                    <span class="leg-pill"><span class="leg-dot" style="background:var(--text-muted)"></span>Color = Producto</span>
+                    <span class="leg-pill"><span class="leg-dot" style="background:var(--text-primary)"></span>Sólido = Completado</span>
+                    <span class="leg-pill"><span class="leg-dot" style="background:var(--text-muted);opacity:0.5"></span>Translúcido = En progreso</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Subtle separator line between row 1 and row 2 -->
+        <div class="w-full h-px" style="background:var(--border-color)"></div>
+
+        <!-- Row 2: Smart Filters (Full width, horizontal layout) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-3 items-center w-full">
+            <div class="flex items-center gap-1.5 w-full">
+                <span class="text-[10px] font-bold uppercase shrink-0" style="color:var(--text-muted)">Fam:</span>
+                <div class="flex-grow min-w-0"><select id="filter-family" multiple placeholder="Familia..."></select></div>
+            </div>
+            <div class="flex items-center gap-1.5 w-full">
+                <span class="text-[10px] font-bold uppercase shrink-0" style="color:var(--text-muted)">Cat:</span>
+                <div class="flex-grow min-w-0"><select id="filter-category" multiple placeholder="Categoría..."></select></div>
+            </div>
+            <div class="flex items-center gap-1.5 w-full">
+                <span class="text-[10px] font-bold uppercase shrink-0" style="color:var(--text-muted)">Pieza:</span>
+                <div class="flex-grow min-w-0"><select id="filter-piece" multiple placeholder="Pieza..."></select></div>
+            </div>
+            <div class="flex items-center gap-1.5 w-full">
+                <span class="text-[10px] font-bold uppercase shrink-0" style="color:var(--text-muted)">Fase:</span>
+                <div class="flex-grow min-w-0"><select id="filter-process" multiple placeholder="Proceso..."></select></div>
+            </div>
+            <div class="flex items-center gap-1.5 w-full">
+                <span class="text-[10px] font-bold uppercase shrink-0" style="color:var(--text-muted)">Est:</span>
+                <div class="flex-grow min-w-0"><select id="filter-estado" multiple placeholder="Estado..."></select></div>
+            </div>
+            <button onclick="resetFilters()"
+                class="w-full px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors border text-center justify-center flex items-center"
+                style="border-color:var(--border-color);background:var(--bg-surface);color:var(--text-primary)">
+                Limpiar Filtros
+            </button>
+        </div>
+    </div>
+
+    <!-- Status bar -->
+    <div id="status-bar" class="shrink-0 px-4 py-1 text-[10px] font-semibold flex items-center gap-3"
+         style="background:var(--bg-elevated);color:var(--text-muted);border-bottom:1px solid var(--border-color)">
+        <span id="status-count">— registros</span>
+        <span class="opacity-40">|</span>
+        <span id="status-range">Cargando...</span>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════
+         CHART AREA
+    ══════════════════════════════════════════════════════ -->
+    <div class="flex-1 w-full min-h-0 overflow-y-auto relative">
+        <!-- Loading overlay -->
+        <div id="gantt-loading" class="absolute inset-0 flex flex-col items-center justify-center z-10"
+             style="background:var(--bg-overlay)">
+            <svg class="animate-spin h-10 w-10 mb-3" style="color:var(--accent-color)"
+                 xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+            </svg>
+            <span class="text-sm font-semibold" style="color:var(--text-secondary)">Analizando trazabilidad...</span>
+            <span id="loading-detail" class="text-xs mt-1" style="color:var(--text-muted)"></span>
+        </div>
+        <!-- Single ECharts container for dual-grid subplots -->
+        <div id="main-chart" class="w-full" style="min-height:500px"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   TRAZABILIDAD — Dual subplot: Gantt (left 60%) + Quality Bars (right 30%)
+   View columns:
+     codigo_pieza, nombre_pieza, familia_nombre, categoria_nombre,
+     fase_proceso, operacion_general, fecha_produccion_dia,
+     fecha_inicio, fecha_fin, cantidad_producida,
+     cantidad_bruta_dia, cantidad_rechazada_dia, estado_fase
+══════════════════════════════════════════════════════════════════════════ */
+
+'use strict';
+
+/* ── State ──────────────────────────────────────────────────────────────── */
+let myChart             = null;
+let globalRawData       = [];       /* all data fetched for the loaded range */
+let currentFilteredData = [];       /* after smart-filter pass               */
+let isUpdatingFilters   = false;
+let choicesInstances    = {};
+let loadedStart         = null;
+let loadedEnd           = null;
+
+/* ── Month names ────────────────────────────────────────────────────────── */
+const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+/* ── Helpers ────────────────────────────────────────────────────────────── */
+function getEchartsTheme() {
+    return document.documentElement.classList.contains('dark') ? 'dark' : null;
+}
+
+function debounce(fn, ms) {
+    let t;
+    return function() { clearTimeout(t); t = setTimeout(() => fn.apply(this, arguments), ms); };
+}
+
+function fmtDate(d) {
+    if (!d) return '';
+    return d.toISOString().split('T')[0];
+}
+
+/** Null-safe timestamp. ECharts crashes if fed NaN or undefined timestamps. */
+function safeTS(val) {
+    if (!val) return Date.now();
+    const t = new Date(val).getTime();
+    return isNaN(t) ? Date.now() : t;
+}
+
+/** Snap a timestamp to the start of its calendar day (00:00:00.000). */
+function snapDayStart(ts) {
+    const d = new Date(ts);
+    d.setHours(0, 0, 0, 0);
+    return d.getTime();
+}
+
+/** Snap a timestamp to the end of its calendar day (23:59:59.999). */
+function snapDayEnd(ts) {
+    const d = new Date(ts);
+    d.setHours(23, 59, 59, 999);
+    return d.getTime();
+}
+
+/* ── Date-input helpers ─────────────────────────────────────────────────── */
+function syncDateInputs(s, e) {
+    const si = document.getElementById('date-start');
+    const ei = document.getElementById('date-end');
+    if (si && s) si.value = fmtDate(s instanceof Date ? s : new Date(s));
+    if (ei && e) ei.value = fmtDate(e instanceof Date ? e : new Date(e));
+}
+
+function setActivePreset(key) {
+    ['today','week','month','all'].forEach(k => {
+        const btn = document.getElementById('btn-' + k);
+        if (btn) {
+            btn.style.background = '';
+            btn.style.color = '';
+            if (k === key) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        }
+    });
+}
+
+/* ── Status bar update ──────────────────────────────────────────────────── */
+function updateStatus(data) {
+    const cnt = document.getElementById('status-count');
+    const rng = document.getElementById('status-range');
+    if (cnt) cnt.textContent = data.length + ' registros';
+    if (rng && data.length) {
+        const dates = data.map(d => d.fecha_produccion_dia || fmtDate(new Date(safeTS(d.fecha_inicio)))).sort();
+        rng.textContent = dates[0] + ' → ' + dates[dates.length - 1];
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ECHARTS BASE OPTION — dual-grid architecture
+   Grid 0 (Gantt):  left 2% → right 40%  (≈ 58% width)
+   Grid 1 (Bars):   left 63% → right 2% (≈ 35% width)
+   Both share the same Y category data via two mirrored yAxes.
+═══════════════════════════════════════════════════════════════════════════ */
+function getBaseOption() {
+    const isDark = getEchartsTheme() === 'dark';
+    const axisColor = isDark ? '#cbd5e1' : '#334155';
+    
+    return {
+    backgroundColor: 'transparent',
+    animation: false,
+    legend: {
+        show: false  /* We use custom legend pills in the toolbar */
+    },
+    tooltip: {
+        trigger: 'item',
+        enterable: false,
+        confine: true,
+        formatter: function(params) {
+            /* Gantt series */
+            if (params.seriesId === 'gantt') {
+                const d  = params.value[4];
+                const fi = d.fecha_inicio ? new Date(d.fecha_inicio).toLocaleString('es-ES') : 'N/A';
+                const ff = d.fecha_fin    ? new Date(d.fecha_fin).toLocaleString('es-ES')    : 'En Progreso';
+                const dia    = d.fecha_produccion_dia || fi.split(',')[0];
+                const estado = d.estado_fase || 'N/A';
+                const estClass = estado === 'Completado'
+                    ? 'color:#16a34a;font-weight:700'
+                    : 'color:#1d4ed8;font-weight:700';
+                const rechazadas = parseFloat(d.cantidad_rechazada_dia || 0);
+                const bruta      = parseFloat(d.cantidad_bruta_dia     || 0);
+                const buenas     = Math.max(0, bruta - rechazadas);
+                return `<div style="font-size:12px;line-height:1.7;min-width:210px">
+                  <b style="font-size:13px">${d.codigo_pieza || 'S/C'}</b>
+                  <span style="${estClass};margin-left:6px;font-size:10px">${estado}</span><br>
+                  <span style="opacity:.7">${d.nombre_pieza || ''}</span><br>
+                  <hr style="margin:4px 0;opacity:.15">
+                  <b>Fase:</b> ${d.fase_proceso || 'N/A'}<br>
+                  <b>Familia:</b> ${d.familia_nombre || 'N/A'} &nbsp;|&nbsp; <b>Cat.:</b> ${d.categoria_nombre || 'N/A'}<br>
+                  <b>Día:</b> ${dia}<br>
+                  <b>Prod.:</b> ${d.cantidad_producida ?? 0} u &nbsp;&nbsp;
+                  <b>Bruta:</b> ${bruta} &nbsp;&nbsp;
+                  <b style="color:#dc2626">Rec.:</b> ${rechazadas}<br>
+                  <b>Buenas:</b> <span style="color:#16a34a;font-weight:700">${buenas}</span><br>
+                  <b>Inicio:</b> ${fi}<br>
+                  <b>Fin:</b> ${ff}
+                </div>`;
+            }
+            /* Bar series */
+            const pct = parseFloat(params.percent || 0).toFixed(1);
+            const color = params.seriesId === 'bars-buenas' ? '#16a34a' : '#dc2626';
+            return `<div style="font-size:12px;line-height:1.6">
+              <b>${params.name}</b><br>
+              <span style="color:${color};font-weight:700">${params.seriesName}:</span> ${params.value} u (${pct}%)
+            </div>`;
+        }
+    },
+    grid: [
+        {   /* Gantt */
+            id: 'grid-gantt',
+            left: '2%', right: '41%',
+            top: 75, bottom: 20,
+            containLabel: true
+        },
+        {   /* Quality bars */
+            id: 'grid-bars',
+            left: '62%', right: '1%',
+            top: 75, bottom: 20,
+            containLabel: true
+        }
+    ],
+    /* ── Time axis (Gantt) + Value axis (Bars) ── */
+    xAxis: [
+        {
+            id: 'x-time',
+            type: 'time',
+            gridIndex: 0,
+            position: 'top',
+            /* NO minInterval constraint — allow intra-day bars to render */
+            axisLabel: {
+                formatter: function(val) {
+                    const d = new Date(val);
+                    const h = d.getHours(), m = d.getMinutes();
+                    /* Show time if range is less than 3 days, otherwise show date */
+                    if (h !== 0 || m !== 0) {
+                        return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+                    }
+                    return d.getDate() + '-' + MONTHS[d.getMonth()];
+                },
+                fontSize: 10, color: axisColor
+            },
+            splitLine: { show: true, lineStyle: { type: 'dashed', opacity: 0.35 } },
+            axisLine:  { lineStyle: { opacity: 0.3 } }
+        },
+        {
+            id: 'x-qty',
+            type: 'value',
+            gridIndex: 1,
+            position: 'top',
+            axisLabel: {
+                formatter: v => v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v,
+                fontSize: 11, color: axisColor
+            },
+            splitLine: { show: true, lineStyle: { type: 'dashed', opacity: 0.3 } },
+            axisLine:  { show: false }
+        }
+    ],
+    /* ── Two mirrored Y-axes (same data) for perfect row alignment ── */
+    yAxis: [
+        {
+            id: 'y-gantt',
+            type: 'category',
+            data: [],
+            gridIndex: 0,
+            inverse: true,
+            axisTick:  { show: false },
+            axisLine:  { show: false },
+            axisLabel: {
+                fontWeight: 'bold', fontSize: 11,
+                overflow: 'truncate', width: 130,
+                color: axisColor
+            }
+        },
+        {
+            id: 'y-bars',
+            type: 'category',
+            data: [],
+            gridIndex: 1,
+            inverse: true,
+            show: false     /* hidden — visual alignment comes from same data order */
+        }
+    ],
+    dataZoom: [
+        {
+            id: 'zoom-slider',
+            type: 'slider',
+            xAxisIndex: [0],
+            top: 20,
+            height: 22,
+            filterMode: 'weakFilter',
+            borderColor: 'transparent',
+            fillerColor: 'rgba(79,70,229,.12)',
+            handleStyle: { color: '#4f46e5', borderColor: '#4f46e5' },
+            labelFormatter: function(val) {
+                const d = new Date(val);
+                return d.getDate() + '-' + MONTHS[d.getMonth()];
+            }
+        },
+        {
+            type: 'inside',
+            xAxisIndex: [0],
+            filterMode: 'weakFilter',
+            zoomOnMouseWheel: true,
+            moveOnMouseMove: true
+        }
+    ],
+    /* ── Series ── */
+    series: [
+        {
+            /* Gantt — custom renderItem */
+            id: 'gantt',
+            type: 'custom',
+            name: 'Gantt',
+            xAxisIndex: 0,
+            yAxisIndex: 0,
+            renderItem: function(params, api) {
+                const catIdx   = api.value(0);
+                const startPx  = api.coord([api.value(1), catIdx]);
+                const endPx    = api.coord([api.value(2), catIdx]);
+                const barH     = api.size([0, 1])[1] * 0.82;
+                const minW     = 2;
+                const barW     = Math.max(endPx[0] - startPx[0], minW);
+
+                const rect = echarts.graphic.clipRectByRect(
+                    { x: startPx[0], y: startPx[1] - barH / 2, width: barW, height: barH },
+                    { x: params.coordSys.x, y: params.coordSys.y,
+                      width: params.coordSys.width, height: params.coordSys.height }
+                );
+                if (!rect) return;
+
+                /* Text: "[codigo_pieza] - [cantidad_producida]u" — industrial format */
+                const label = api.value(3);
+
+                return {
+                    type: 'group',
+                    children: [
+                        {
+                            type: 'rect',
+                            shape: rect,
+                            style: api.style({
+                                stroke: isDark ? '#0f172a' : '#ffffff',
+                                lineWidth: 1.5
+                            })
+                        },
+                        {
+                            type: 'text',
+                            style: {
+                                x: rect.x + 5,
+                                y: rect.y + rect.height / 2,
+                                text: label,
+                                fill: isDark ? '#ffffff' : '#0f172a',
+                                textVerticalAlign: 'middle',
+                                fontSize: 10.5,
+                                fontWeight: '600',
+                                fontFamily: 'monospace',
+                                truncate: { outerWidth: rect.width - 10, ellipsis: '…' }
+                            }
+                        }
+                    ]
+                };
+            },
+            encode: { x: [1, 2], y: 0 },
+            data: []
+        },
+        /* Quality bars will be dynamically generated per product */
+        /* End of dynamic series injection point */
+    ]
+    };
+};
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DATA PROCESSING
+═══════════════════════════════════════════════════════════════════════════ */
+
+/** Extract unique ordered fase_proceso categories from a dataset. */
+function extractCategories(data) {
+    const seen = new Set();
+    const cats = [];
+    data.forEach(d => {
+        const c = d.fase_proceso || 'N/A';
+        if (!seen.has(c)) { seen.add(c); cats.push(c); }
+    });
+    return cats.sort();
+}
+
+/** Aggregate quantity data by product for the stacked bar chart. */
+function aggregateByProduct(data, categories) {
+    const products = Array.from(new Set(data.map(d => d.codigo_pieza || 'S/C'))).sort();
+    const seriesData = {};
+    products.forEach(p => { seriesData[p] = new Array(categories.length).fill(0); });
+
+    data.forEach(item => {
+        const phase = item.fase_proceso || 'N/A';
+        const p = item.codigo_pieza || 'S/C';
+        const catIdx = categories.indexOf(phase);
+        if (catIdx !== -1) {
+            const qty = parseFloat(item.cantidad_producida || item.cantidad_bruta_dia || 0);
+            seriesData[p][catIdx] += qty;
+        }
+    });
+
+    return { products, seriesData };
+}
+
+/** Get current visible time range from the dataZoom component.
+ *  ECharts may store zoom as percentage (start/end 0-100) or as
+ *  absolute timestamps (startValue/endValue). We handle both.
+ */
+function getVisibleTimeRange() {
+    if (!myChart || !currentFilteredData.length) return { startTS: null, endTS: null };
+    try {
+        const opt = myChart.getOption();
+        const dz  = opt.dataZoom ? opt.dataZoom[0] : null;
+        if (!dz) return { startTS: null, endTS: null };
+
+        /* Case 1: ECharts stored absolute timestamps */
+        if (dz.startValue != null && dz.endValue != null) {
+            return {
+                startTS: new Date(dz.startValue).getTime(),
+                endTS:   new Date(dz.endValue).getTime()
+            };
+        }
+
+        /* Case 2: ECharts in percentage mode — compute from data extent */
+        const allStarts = currentFilteredData.map(d => safeTS(d.fecha_inicio));
+        const allEnds   = currentFilteredData.map(d => safeTS(d.fecha_fin));
+        const dataMin   = Math.min(...allStarts);
+        const dataMax   = Math.max(...allEnds);
+        const span      = dataMax - dataMin;
+        const startPct  = (dz.start  != null ? dz.start  : 0)   / 100;
+        const endPct    = (dz.end    != null ? dz.end    : 100)  / 100;
+        return {
+            startTS: dataMin + span * startPct,
+            endTS:   dataMin + span * endPct
+        };
+    } catch(e) {
+        return { startTS: null, endTS: null };
+    }
+}
+
+/** Filter data to only items visible in the current zoom window. */
+function filterByZoom(data, startTS, endTS) {
+    return data.filter(item => {
+        const s = safeTS(item.fecha_inicio);
+        const e = safeTS(item.fecha_fin);
+        return s <= endTS && e >= startTS;
+    });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CHART RENDERING
+═══════════════════════════════════════════════════════════════════════════ */
+
+/** Color map for phase → consistent color across redraws. */
+const GANTT_PALETTE = [
+    '#4f46e5','#0891b2','#059669','#d97706','#be185d',
+    '#7c3aed','#0284c7','#16a34a','#ca8a04','#9d174d'
+];
+const phaseColorMap = {};
+let phaseColorIdx = 0;
+
+function getPhaseColor(phase) {
+    if (!phaseColorMap[phase]) {
+        phaseColorMap[phase] = GANTT_PALETTE[phaseColorIdx % GANTT_PALETTE.length];
+        phaseColorIdx++;
+    }
+    return phaseColorMap[phase];
+}
+
+/**
+ * Main render function.
+ * @param {Array}  data      - filtered dataset to render
+ * @param {number} startTS   - visible zoom start (ms) — for quality bar
+ * @param {number} endTS     - visible zoom end   (ms) — for quality bar
+ */
+function renderChart(data, startTS, endTS) {
+    if (!myChart) return;
+
+    const categories = extractCategories(data);
+    const isDark     = document.documentElement.classList.contains('dark');
+
+    /* ── Build Gantt series data (all data — zoom controls visibility) ── */
+    const ganttData = data.map(item => {
+        const catIdx = categories.indexOf(item.fase_proceso || 'N/A');
+        if (catIdx === -1) return null;
+
+        const s    = safeTS(item.fecha_inicio);
+        const e    = safeTS(item.fecha_fin);
+        const cant = item.cantidad_producida ?? 0;
+
+        /* Industrial label */
+        const label = (item.codigo_pieza || 'S/C') + ' - ' + cant + 'u';
+
+        /* Color by codigo_pieza for consistency */
+        const baseColor = (window.MES)
+            ? window.MES.getProductColor(item.codigo_pieza, isDark)
+            : getPhaseColor(item.fase_proceso || 'N/A');
+        const isComplete = (item.estado_fase || '').toLowerCase().includes('complet');
+        const color = isComplete ? baseColor : baseColor + 'B3';
+
+        return {
+            value: [catIdx, s, e, label, item],
+            itemStyle: { color }
+        };
+    }).filter(Boolean);
+
+    /* ── Build stacked bar data from zoom-visible items ── */
+    /* If no explicit zoom range given, use the full data extent */
+    const visibleForBars = (startTS != null && endTS != null)
+        ? filterByZoom(data, startTS, endTS)
+        : data;
+    const pAgg = aggregateByProduct(visibleForBars, categories);
+
+    const barSeries = pAgg.products.map(p => ({
+        id: 'bar-' + p,
+        type: 'bar',
+        name: p,
+        xAxisIndex: 1,
+        yAxisIndex: 1,
+        stack: 'volume',
+        barMaxWidth: 36,
+        itemStyle: {
+            color: window.MES ? window.MES.getProductColor(p, isDark) : '#888'
+        },
+        label: {
+            show: true,
+            position: 'inside',
+            fontSize: 9.5,
+            fontWeight: '700',
+            color: isDark ? '#ffffff' : '#0f172a',
+            formatter: params => params.value > 0 ? params.value : ''
+        },
+        data: pAgg.seriesData[p]
+    }));
+
+    /* ── Dynamic height based on category count ── */
+    const rowH   = 52;
+    const baseH  = Math.max(categories.length * rowH + 140, 500);
+    myChart.getDom().style.height = baseH + 'px';
+    myChart.resize();
+
+    /* ── Push to ECharts (series matched by id) ── */
+    myChart.setOption({
+        yAxis: [
+            { id: 'y-gantt', data: categories },
+            { id: 'y-bars',  data: categories }
+        ],
+        series: [
+            { id: 'gantt', data: ganttData },
+            ...barSeries
+        ]
+    }, { replaceMerge: ['series'] }); // replaceMerge is needed to remove old product bars
+
+    updateStatus(data);
+}
+
+/** Called on dataZoom event — only recalculates the bar chart data. */
+function onDataZoom() {
+    if (!myChart || !currentFilteredData.length) return;
+    const { startTS, endTS } = getVisibleTimeRange();
+
+    /* Snap to day boundaries for clean display */
+    const sDay = snapDayStart(startTS);
+    const eDay = snapDayEnd(endTS);
+
+    /* Get current categories from chart */
+    let cats;
+    try {
+        cats = myChart.getOption().yAxis[0].data || [];
+    } catch(e) {
+        cats = extractCategories(currentFilteredData);
+    }
+
+    const visible = filterByZoom(currentFilteredData, sDay, eDay);
+    const pAgg    = aggregateByProduct(visible, cats);
+    const isDark  = document.documentElement.classList.contains('dark');
+
+    const barSeries = pAgg.products.map(p => ({
+        id: 'bar-' + p,
+        type: 'bar',
+        name: p,
+        xAxisIndex: 1,
+        yAxisIndex: 1,
+        stack: 'volume',
+        barMaxWidth: 36,
+        itemStyle: {
+            color: window.MES ? window.MES.getProductColor(p, isDark) : '#888'
+        },
+        label: {
+            show: true,
+            position: 'inside',
+            fontSize: 9.5,
+            fontWeight: '700',
+            color: isDark ? '#ffffff' : '#0f172a',
+            formatter: params => params.value > 0 ? params.value : ''
+        },
+        data: pAgg.seriesData[p]
+    }));
+
+    // Keep the Gantt series and replace the stacked bars
+    const currentOpt = myChart.getOption();
+    const ganttSeries = currentOpt.series.find(s => s.id === 'gantt');
+
+    myChart.setOption({
+        series: [
+            ganttSeries,
+            ...barSeries
+        ]
+    }, { replaceMerge: ['series'] });
+
+    syncDateInputs(new Date(sDay), new Date(eDay));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SMART CASCADING FILTERS
+═══════════════════════════════════════════════════════════════════════════ */
+function applySmartFilters() {
+    if (isUpdatingFilters) return;
+    isUpdatingFilters = true;
+
+    const selFamily  = choicesInstances['family']  ? choicesInstances['family'].getValue(true)  || [] : [];
+    const selCat     = choicesInstances['category']? choicesInstances['category'].getValue(true) || [] : [];
+    const selPiece   = choicesInstances['piece']   ? choicesInstances['piece'].getValue(true)   || [] : [];
+    const selProc    = choicesInstances['process'] ? choicesInstances['process'].getValue(true)  || [] : [];
+    const selEstado  = choicesInstances['estado']  ? choicesInstances['estado'].getValue(true)  || [] : [];
+
+    currentFilteredData = globalRawData.filter(item => {
+        if (selFamily.length && !selFamily.includes(item.familia_nombre   || 'N/A')) return false;
+        if (selCat.length    && !selCat.includes(item.categoria_nombre    || 'N/A')) return false;
+        if (selPiece.length  && !selPiece.includes(item.codigo_pieza      || 'N/A')) return false;
+        if (selProc.length   && !selProc.includes(item.fase_proceso        || 'N/A')) return false;
+        if (selEstado.length && !selEstado.includes(item.estado_fase       || 'N/A')) return false;
+        return true;
+    });
+
+    /* Full render from filtered data using current zoom window */
+    const { startTS, endTS } = getVisibleTimeRange();
+    renderChart(currentFilteredData, startTS, endTS);
+
+    /* Rebuild Choices options */
+    const avFamily  = new Set(selFamily);
+    const avCat     = new Set(selCat);
+    const avPiece   = new Set(selPiece);
+    const avProc    = new Set(selProc);
+    const avEstado  = new Set(selEstado);
+    currentFilteredData.forEach(d => {
+        avFamily.add(d.familia_nombre    || 'N/A');
+        avCat.add(d.categoria_nombre     || 'N/A');
+        avPiece.add(d.codigo_pieza       || 'N/A');
+        avProc.add(d.fase_proceso         || 'N/A');
+        avEstado.add(d.estado_fase        || 'N/A');
+    });
+
+    const syncChoices = (key, validSet, selectedArr) => {
+        if (!choicesInstances[key]) return;
+        const opts = Array.from(validSet).sort().map(v => ({
+            value: v, label: v, selected: selectedArr.includes(v)
+        }));
+        choicesInstances[key].clearStore();
+        choicesInstances[key].setChoices(opts, 'value', 'label', true);
+    };
+    syncChoices('family',   avFamily,  selFamily);
+    syncChoices('category', avCat,     selCat);
+    syncChoices('piece',    avPiece,   selPiece);
+    syncChoices('process',  avProc,    selProc);
+    syncChoices('estado',   avEstado,  selEstado);
+
+    isUpdatingFilters = false;
+}
+
+window.resetFilters = function() {
+    Object.values(choicesInstances).forEach(c => c.removeActiveItems && c.removeActiveItems());
+    applySmartFilters();
+};
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DATA FETCH
+═══════════════════════════════════════════════════════════════════════════ */
+function fetchData(startDate, endDate, label) {
+    document.getElementById('gantt-loading').classList.remove('hidden');
+    const det = document.getElementById('loading-detail');
+    if (det) det.textContent = label || '';
+
+    let url = '/api/trazabilidad/gantt';
+    if (startDate && endDate) {
+        url += `?fecha_inicio=${fmtDate(startDate)}&fecha_fin=${fmtDate(endDate)}`;
+    }
+
+    return fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) { console.error('API error:', data.error); return; }
+
+            /* Deduplicate by composite key (grouped-by-day rows) */
+            const existingKeys = new Set(
+                globalRawData.map(d =>
+                    `${d.codigo_pieza}|${d.fase_proceso}|${d.fecha_produccion_dia}`)
+            );
+            data.forEach(item => {
+                const key = `${item.codigo_pieza}|${item.fase_proceso}|${item.fecha_produccion_dia}`;
+                if (!existingKeys.has(key)) { globalRawData.push(item); existingKeys.add(key); }
+            });
+
+            loadedStart = startDate;
+            loadedEnd   = endDate;
+            syncDateInputs(startDate, endDate);
+            document.getElementById('gantt-loading').classList.add('hidden');
+            applySmartFilters();
+        })
+        .catch(err => {
+            console.error('Fetch error:', err);
+            document.getElementById('gantt-loading').classList.add('hidden');
+        });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PUBLIC RANGE BUTTONS
+═══════════════════════════════════════════════════════════════════════════ */
+window.loadRange = function(range) {
+    setActivePreset(range);
+    let r;
+    if      (range === 'today') r = MES.todayRange();
+    else if (range === 'week')  r = MES.weekRange();
+    else if (range === 'month') r = MES.monthRange();
+    else {
+        /* "all" — clear cache and load everything */
+        globalRawData = []; loadedStart = null; loadedEnd = null;
+        syncDateInputs(null, null);
+        fetchData(null, null, 'Todos los registros').then(() => {
+            if (myChart) myChart.dispatchAction({
+                type: 'dataZoom', dataZoomIndex: 0, start: 0, end: 100
+            });
+        });
+        return;
+    }
+    syncDateInputs(r.s, r.e);
+    globalRawData = []; loadedStart = null; loadedEnd = null;
+    const label = range === 'today' ? 'Hoy' : range === 'week' ? 'Esta semana' : 'Este mes';
+    fetchData(r.s, r.e, label).then(() => {
+        if (myChart) MES.applyGanttZoom(myChart, range);
+    });
+};
+
+window.applyDateInputs = function() {
+    const sStr = document.getElementById('date-start').value;
+    const eStr = document.getElementById('date-end').value;
+    if (!sStr || !eStr) return;
+    const s = new Date(sStr + 'T00:00:00');
+    const e = new Date(eStr + 'T23:59:59');
+    if (isNaN(s) || isNaN(e)) return;
+    setActivePreset(null);
+    globalRawData = []; loadedStart = null; loadedEnd = null;
+    fetchData(s, e, `${sStr} → ${eStr}`).then(() => {
+        if (myChart) myChart.dispatchAction({
+            type: 'dataZoom', dataZoomIndex: 0,
+            startValue: s.getTime(), endValue: e.getTime()
+        });
+    });
+};
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════════════════════ */
+function initPage() {
+    /* ── Bootstrap ECharts ── */
+    const dom = document.getElementById('main-chart');
+    myChart = echarts.init(dom, getEchartsTheme(), { renderer: 'canvas' });
+    myChart.setOption(getBaseOption());
+
+    /* ── Choices.js filters ── */
+    ['family','category','piece','process','estado'].forEach(key => {
+        const el = document.getElementById('filter-' + key);
+        if (!el) return;
+        choicesInstances[key] = new Choices(el, {
+            removeItemButton: true, searchEnabled: true,
+            itemSelectText: '', placeholder: true
+        });
+        el.addEventListener('change', () => applySmartFilters());
+    });
+
+    /* ── dataZoom → live bar recalculation ── */
+    myChart.on('dataZoom', debounce(onDataZoom, 150));
+
+    /* ── Lazy-load when user zooms out of loaded range ── */
+    myChart.on('dataZoom', debounce(function() {
+        const opt = myChart.getOption();
+        const dz  = opt.dataZoom ? opt.dataZoom[0] : null;
+        if (!dz || loadedStart === null) return;
+
+        const visStart = new Date(dz.startValue);
+        const visEnd   = new Date(dz.endValue);
+        const needExpand = visStart < loadedStart || visEnd > loadedEnd;
+        if (!needExpand) return;
+
+        const newS = new Date(Math.min(visStart.getTime(), loadedStart.getTime()));
+        const newE = new Date(Math.max(visEnd.getTime(),   loadedEnd.getTime()));
+        newS.setDate(newS.getDate() - 14);
+        newE.setDate(newE.getDate() + 14);
+        globalRawData = [];
+        fetchData(newS, newE, 'Expandiendo rango...');
+    }, 600));
+
+    /* ── Resize handler ── */
+    window.addEventListener('resize', () => myChart && myChart.resize());
+
+    /* ── Theme toggle ── */
+    new MutationObserver(mutations => {
+        mutations.forEach(m => {
+            if (m.attributeName !== 'class' || !myChart) return;
+            const dz = myChart.getOption().dataZoom ? myChart.getOption().dataZoom[0] : null;
+            const sv = dz ? dz.startValue : null;
+            const ev = dz ? dz.endValue   : null;
+            myChart.dispose();
+            myChart = echarts.init(document.getElementById('main-chart'), getEchartsTheme(), { renderer: 'canvas' });
+            myChart.setOption(getBaseOption());
+            /* re-attach zoom handler */
+            myChart.on('dataZoom', debounce(onDataZoom, 150));
+            applySmartFilters();
+            if (sv && ev) myChart.dispatchAction({
+                type: 'dataZoom', startValue: sv, endValue: ev
+            });
+        });
+    }).observe(document.documentElement, { attributes: true });
+
+    /* ── Initial load: this week ── */
+    setActivePreset('week');
+    loadRange('week');
+}
+
+/* SPA guard */
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPage);
+} else {
+    initPage();
+}
+
+/* ─── Export ─────────────────────────────────────────────────────────── */
+window.downloadChartImage = function() {
+    if (!myChart) return;
+    const isDark = document.documentElement.classList.contains('dark');
+    const url = myChart.getDataURL({
+        type: 'png',
+        backgroundColor: isDark ? '#1e293b' : '#ffffff',
+        pixelRatio: 2
+    });
+    const a = document.createElement('a');
+    a.download = 'Trazabilidad_Subplots.png';
+    a.href = url;
+    a.click();
+};
+</script>
+{% endblock %}

@@ -1,0 +1,19 @@
+# Entornos y cachés
+venv/
+.venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+.ipynb_checkpoints/
+
+# Secretos y datos confidenciales (no deben entrar en la imagen)
+.env
+data/
+datos simulados/
+_local/
+*.csv
+*.xlsx
+
+# Documentación
+README.md

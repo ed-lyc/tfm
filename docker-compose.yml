@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:16
+    container_name: tfm_db
+    environment:
+      POSTGRES_DB: ${DB_NAME:-tfm_db}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-tfm_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    container_name: tfm_web
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Dentro de la red de Compose la base de datos es accesible por el nombre del servicio
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-tfm_db}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el archivo .env}
+      FLASK_ENV: ${FLASK_ENV:-production}
+    ports:
+      - "5000:5000"
+
+volumes:
+  pgdata:

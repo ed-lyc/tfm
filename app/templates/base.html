@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sistema MES Industrial{% endblock %}</title>
+    
+    <!-- Google Fonts: Plus Jakarta Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        },
+                        gray: {
+                            800: '#1e293b', // Deep indigo surface
+                            900: '#0f172a', // Deep indigo background
+                            950: '#020617',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2.2">
+    {% block head %}{% endblock %}
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header Principal -->
+    <header class="mes-header">
+        <div class="w-full mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center">
+                <!-- Branding -->
+                <a href="{{ url_for('home') }}" style="color: var(--text-primary); font-size: 1.25rem; font-weight: 800; display: flex; align-items: center; gap: 0.5rem; text-decoration: none;">
+                    <div style="padding: 0.375rem; background-color: var(--accent-color); color: white; border-radius: 8px;">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                    </div>
+                    <span class="hidden sm:block">MES Industrial</span>
+                </a>
+            </div>
+            
+            <div class="flex items-center space-x-2 sm:space-x-4">
+                <!-- Theme Toggle Switcher -->
+                <button id="theme-toggle" class="mes-btn-icon p-2" title="Cambiar Tema">
+                    <!-- Icono Sol (Dark Mode) -->
+                    <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
+                    <!-- Icono Luna (Light Mode) -->
+                    <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+                </button>
+
+                <!-- Menú Hamburguesa -->
+                <button id="drawer-toggle" class="mes-btn-icon p-2 flex items-center gap-2" style="background-color: var(--bg-surface-hover);">
+                    <span class="text-sm font-medium hidden sm:block">Menú</span>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Overlay oscuro para el Drawer -->
+    <div id="drawer-overlay" class="fixed inset-0 z-40 hidden transition-opacity duration-300 opacity-0" style="background-color: rgba(0,0,0,0.5);"></div>
+
+    <!-- Menú Drawer Lateral (Derecho) -->
+    <aside id="drawer-menu" class="mes-drawer fixed top-0 right-0 z-50 h-screen w-72 sm:w-80 transform translate-x-full flex flex-col">
+        
+        <!-- Drawer Header -->
+        <div class="h-16 px-6 flex items-center justify-between" style="border-bottom: 1px solid var(--border-color); background-color: transparent;">
+            <span class="text-lg font-bold">Navegación</span>
+            <button id="drawer-close" class="mes-btn-icon p-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        
+        <!-- Enlaces de Navegación -->
+        <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+            <a href="{{ url_for('home') }}" class="mes-nav-link flex items-center px-4 py-3 font-medium group">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                Dashboard Inicio
+            </a>
+            <a href="{{ url_for('produccion') }}" class="mes-nav-link flex items-center px-4 py-3 font-medium group">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                Producción <span class="mes-badge mes-badge-brand ml-auto" style="font-size: 0.65rem;">PLANTA</span>
+            </a>
+            <a href="{{ url_for('planificacion') }}" class="mes-nav-link flex items-center px-4 py-3 font-medium group">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                Planificación
+            </a>
+            <a href="{{ url_for('registros') }}" class="mes-nav-link flex items-center px-4 py-3 font-medium group">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                Registros
+            </a>
+            <a href="{{ url_for('trazabilidad') }}" class="mes-nav-link flex items-center px-4 py-3 font-medium group">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+                Trazabilidad
+            </a>
+            <a href="{{ url_for('estandares') }}" class="mes-nav-link flex items-center px-4 py-3 font-medium group">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                Estándares KPI
+            </a>
+            <div class="pt-4 mt-4" style="border-top: 1px solid var(--border-color);">
+                <a href="{{ url_for('vistas') }}" class="mes-nav-link flex items-center px-4 py-3 font-medium group">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+                    Vistas SQL
+                </a>
+                <a href="{{ url_for('explorador') }}" class="mes-nav-link flex items-center px-4 py-3 font-medium group">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    Explorador Datos
+                </a>
+            </div>
+        </nav>
+        
+        <!-- Drawer Footer -->
+        <div class="p-4 text-xs text-center" style="border-top: 1px solid var(--border-color); color: var(--text-muted);">
+            Sistema MES Industrial &copy; 2026<br>
+            <span style="font-size: 0.65rem;">Modern Spatial UI</span>
+        </div>
+    </aside>
+
+    <!-- Contenido Principal -->
+    <main class="flex-1 w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 transition-all">
+        {% block content %}
+        <!-- Aquí se inyecta el contenido dinámico de cada vista -->
+        {% endblock %}
+    </main>
+
+    <!-- Scripts Base (Tema y Menú Drawer) -->
+    <script>
+        // Lógica de Alternancia de Tema (Dark/Light)
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const darkIcon = document.getElementById('theme-toggle-dark-icon');
+        const lightIcon = document.getElementById('theme-toggle-light-icon');
+
+        // Función para aplicar tema y cambiar iconos
+        function applyTheme(isDark) {
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+                document.documentElement.setAttribute('data-theme', 'dark'); // Keep for CSS vars
+                lightIcon.classList.remove('hidden');
+                darkIcon.classList.add('hidden');
+                localStorage.setItem('color-theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.documentElement.removeAttribute('data-theme'); // Keep for CSS vars
+                darkIcon.classList.remove('hidden');
+                lightIcon.classList.add('hidden');
+                localStorage.setItem('color-theme', 'light');
+            }
+        }
+
+        // Comprobación inicial
+        if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            applyTheme(true);
+        } else {
+            applyTheme(false);
+        }
+
+        // Evento de clic en el botón de tema
+        themeToggleBtn.addEventListener('click', function() {
+            if (document.documentElement.classList.contains('dark')) {
+                applyTheme(false);
+            } else {
+                applyTheme(true);
+            }
+        });
+
+        // Lógica del Drawer Menu (Menú Lateral)
+        const drawerToggle = document.getElementById('drawer-toggle');
+        const drawerClose = document.getElementById('drawer-close');
+        const drawerMenu = document.getElementById('drawer-menu');
+        const drawerOverlay = document.getElementById('drawer-overlay');
+
+        function openDrawer() {
+            // Mostrar overlay
+            drawerOverlay.classList.remove('hidden');
+            // Pequeño retardo para permitir la animación de opacidad
+            setTimeout(() => {
+                drawerOverlay.classList.remove('opacity-0');
+            }, 10);
+            
+            // Desplazar el menú hacia adentro
+            drawerMenu.classList.remove('translate-x-full');
+            
+            // Prevenir scroll en el body
+            document.body.classList.add('overflow-hidden');
+        }
+
+        function closeDrawer() {
+            // Desplazar el menú hacia afuera
+            drawerMenu.classList.add('translate-x-full');
+            
+            // Ocultar overlay con animación
+            drawerOverlay.classList.add('opacity-0');
+            setTimeout(() => {
+                drawerOverlay.classList.add('hidden');
+            }, 300); // Coincide con la duración de la transición
+            
+            // Restaurar scroll en el body
+            document.body.classList.remove('overflow-hidden');
+        }
+
+        // Asignar eventos
+        drawerToggle.addEventListener('click', openDrawer);
+        drawerClose.addEventListener('click', closeDrawer);
+        drawerOverlay.addEventListener('click', closeDrawer);
+        
+        // Cerrar menú con tecla ESC
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !drawerMenu.classList.contains('translate-x-full')) {
+                closeDrawer();
+            }
+        });
+    </script>
+    
+    <!-- Script Personalizado Global -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <!-- MES Utilities: date range, gantt zoom helpers -->
+    <script src="{{ url_for('static', filename='js/mes-utils.js') }}?v=1.0"></script>
+    
+    <!-- Bloque para scripts dinámicos en vistas hijas -->
+    {% block scripts %}
+    {% endblock %}
+</body>
+</html>
